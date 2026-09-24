@@ -15,14 +15,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ==========================================
       # CHECKOUT
       # ==========================================
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # ==========================================
-      # SETUP PNPM
+      # PNPM
       # ==========================================
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -30,30 +31,34 @@ jobs:
           version: 9.12.0
 
       # ==========================================
-      # SETUP NODE
+      # NODE
       # ==========================================
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           package-manager-cache: false
 
       # ==========================================
-      # SETUP JAVA
+      # JAVA
       # ==========================================
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       # ==========================================
-      # VERIFY PACKAGE
+      # CHECK PROJECT
       # ==========================================
-      - name: Verify package.json
+      - name: Check Expo project
+        shell: bash
         run: |
           set -e
+
+          echo "================================"
+          echo "CHECK EXPO PROJECT"
+          echo "================================"
 
           if [ ! -f package.json ]; then
             echo "::error::package.json tidak ditemukan."
@@ -62,18 +67,35 @@ jobs:
 
           echo "✓ package.json ditemukan"
 
+          if [ -f pnpm-lock.yaml ]; then
+            echo "✓ pnpm-lock.yaml ditemukan"
+          else
+            echo "⚠ pnpm-lock.yaml tidak ditemukan"
+            echo "Menggunakan pnpm install biasa."
+          fi
+
       # ==========================================
       # INSTALL DEPENDENCIES
       # ==========================================
       - name: Install dependencies
+        shell: bash
         run: |
-          pnpm install
+          set -e
+
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
 
       # ==========================================
       # EXPO PREBUILD
       # ==========================================
       - name: Expo prebuild
+        shell: bash
         run: |
+          set -e
+
           npx expo prebuild \
             --platform android \
             --clean
@@ -82,10 +104,54 @@ jobs:
           EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
       # ==========================================
+      # VERIFY ANDROID PROJECT
+      # ==========================================
+      - name: Verify Android project
+        shell: bash
+        run: |
+          set -e
+
+          echo "================================"
+          echo "CHECK ANDROID PROJECT"
+          echo "================================"
+
+          if [ ! -d android ]; then
+            echo "::error::Folder android/ tidak dibuat oleh Expo prebuild."
+            exit 1
+          fi
+
+          if [ ! -f android/gradlew ]; then
+            echo "::error::android/gradlew tidak ditemukan."
+            exit 1
+          fi
+
+          if [ ! -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "::error::Gradle Wrapper tidak ditemukan."
+            exit 1
+          fi
+
+          if [ ! -d android/app ]; then
+            echo "::error::android/app tidak ditemukan."
+            exit 1
+          fi
+
+          echo "✓ android/"
+          echo "✓ android/gradlew"
+          echo "✓ Gradle Wrapper"
+          echo "✓ android/app"
+
+      # ==========================================
+      # GRADLE
+      # ==========================================
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # ==========================================
       # BUILD DEBUG APK
       # ==========================================
       - name: Build Debug APK
         working-directory: android
+        shell: bash
         run: |
           set -e
 
@@ -104,34 +170,45 @@ jobs:
       # CHECK APK
       # ==========================================
       - name: Check APK
+        shell: bash
         run: |
           set -e
 
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
-            echo "::error::APK tidak ditemukan."
+            echo "::error::app-debug.apk tidak ditemukan."
+            echo ""
+            echo "APK yang tersedia:"
+            find android/app/build/outputs -type f -name "*.apk" 2>/dev/null || true
             exit 1
           fi
 
-          echo "✓ APK berhasil dibuat"
+          echo "================================"
+          echo "APK BERHASIL"
+          echo "================================"
+
           ls -lh "$APK"
 
       # ==========================================
-      # RENAME APK
+      # RENAME
       # ==========================================
       - name: Rename APK
+        shell: bash
         run: |
           cp \
             android/app/build/outputs/apk/debug/app-debug.apk \
             AnimeKx-debug.apk
 
+          ls -lh AnimeKx-debug.apk
+
       # ==========================================
-      # UPLOAD APK
+      # UPLOAD
       # ==========================================
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: AnimeKx-debug
           path: AnimeKx-debug.apk
+          if-no-files-found: error
           retention-days: 7
