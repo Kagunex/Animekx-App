@@ -54,7 +54,7 @@ jobs:
       - name: Check Expo project
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           echo "================================"
           echo "CHECK EXPO PROJECT"
@@ -80,7 +80,7 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           if [ -f pnpm-lock.yaml ]; then
             pnpm install --frozen-lockfile
@@ -94,7 +94,7 @@ jobs:
       - name: Expo prebuild
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           npx expo prebuild \
             --platform android \
@@ -109,7 +109,7 @@ jobs:
       - name: Verify Android project
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           echo "================================"
           echo "CHECK ANDROID PROJECT"
@@ -145,6 +145,22 @@ jobs:
       # ==========================================
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
+
+      # ==========================================
+      # CLEAN BUILD
+      # ==========================================
+      - name: Clean Gradle
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          chmod +x gradlew
+
+          ./gradlew clean \
+            --no-daemon
 
       # ==========================================
       # BUILD DEBUG APK
@@ -153,42 +169,77 @@ jobs:
         working-directory: android
         shell: bash
         run: |
-          set -e
-
-          chmod +x gradlew
+          set -euo pipefail
 
           ./gradlew assembleDebug \
             -PreactNativeArchitectures=arm64-v8a \
             -PnewArchEnabled=false \
             --no-daemon \
-            --stacktrace
+            --stacktrace \
+            --rerun-tasks
         env:
           EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
           EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
       # ==========================================
-      # CHECK APK
+      # CHECK APK EXISTS
       # ==========================================
       - name: Check APK
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
 
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
           if [ ! -f "$APK" ]; then
             echo "::error::app-debug.apk tidak ditemukan."
+
             echo ""
             echo "APK yang tersedia:"
-            find android/app/build/outputs -type f -name "*.apk" 2>/dev/null || true
+            find android/app/build/outputs \
+              -type f \
+              -name "*.apk" \
+              -print 2>/dev/null || true
+
             exit 1
           fi
 
           echo "================================"
-          echo "APK BERHASIL"
+          echo "APK DITEMUKAN"
           echo "================================"
 
           ls -lh "$APK"
+
+      # ==========================================
+      # VALIDATE APK ZIP
+      # ==========================================
+      - name: Validate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          echo "================================"
+          echo "VALIDATE APK"
+          echo "================================"
+
+          echo ""
+          echo "Testing ZIP integrity..."
+
+          unzip -t "$APK"
+
+          echo ""
+          echo "================================"
+          echo "SHA256"
+          echo "================================"
+
+          sha256sum "$APK"
+
+          echo ""
+          echo "================================"
+          echo "APK VALID"
+          echo "================================"
 
       # ==========================================
       # RENAME
@@ -196,6 +247,8 @@ jobs:
       - name: Rename APK
         shell: bash
         run: |
+          set -euo pipefail
+
           cp \
             android/app/build/outputs/apk/debug/app-debug.apk \
             AnimeKx-debug.apk
