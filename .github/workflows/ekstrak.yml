@@ -1,4 +1,4 @@
-name: Extract ZIP
+name: Extract Base APK ZIP
 
 on:
   workflow_dispatch:
@@ -13,8 +13,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Find ZIP
         id: zip
@@ -24,29 +22,28 @@ jobs:
           ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
 
           if [ -z "$ZIP" ]; then
-            echo "::error::ZIP tidak ditemukan di root repository."
+            echo "::error::File ZIP base APK tidak ditemukan di root repository."
             exit 1
           fi
 
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
-          echo "ZIP: $ZIP"
+          echo "ZIP ditemukan: $ZIP"
 
-      - name: Validate ZIP
-        run: |
-          unzip -t "${{ steps.zip.outputs.zip }}"
-
-      - name: Extract ZIP
+      - name: Extract Base APK
         run: |
           set -e
 
-          rm -rf /tmp/musickz
-          mkdir -p /tmp/musickz
+          ZIP="${{ steps.zip.outputs.zip }}"
+          TEMP="/tmp/base-apk"
 
-          unzip -q "${{ steps.zip.outputs.zip }}" -d /tmp/musickz
+          rm -rf "$TEMP"
+          mkdir -p "$TEMP"
 
-          ROOT="/tmp/musickz"
+          unzip -q "$ZIP" -d "$TEMP"
 
-          # Kalau ZIP punya folder pembungkus seperti Metrolist-main/
+          ROOT="$TEMP"
+
+          # Deteksi folder pembungkus ZIP
           COUNT=$(find "$ROOT" -mindepth 1 -maxdepth 1 | wc -l)
 
           if [ "$COUNT" -eq 1 ]; then
@@ -59,15 +56,10 @@ jobs:
 
           echo "Project root: $ROOT"
 
-          if [ ! -f "$ROOT/gradlew" ]; then
-            echo "::error::gradlew tidak ditemukan."
-            exit 1
-          fi
-
-          # Hapus .github dari ZIP
+          # Jangan menimpa workflow GitHub
           rm -rf "$ROOT/.github"
 
-          # Salin semua isi project ke root repository
+          # Salin isi base APK ke root repository
           cp -a "$ROOT"/. .
 
       - name: Remove ZIP
@@ -78,22 +70,25 @@ jobs:
         run: |
           set -e
 
-          echo "=== PROJECT ==="
+          echo "=== BASE APK ==="
 
-          test -f gradlew
-          test -d app
+          if [ -f "gradlew" ]; then
+            echo "✓ gradlew"
+          fi
 
-          echo "✓ gradlew"
-          echo "✓ app/"
+          if [ -d "app" ]; then
+            echo "✓ app/"
+          fi
+
+          if [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ]; then
+            echo "✓ settings.gradle"
+          fi
 
           echo ""
           echo "=== WORKFLOW ==="
 
-          if [ -f ".github/workflows/ekstrak.yml" ]; then
-            echo "✓ ekstrak.yml tetap ada"
-          else
-            echo "::warning::ekstrak.yml tidak ditemukan."
-          fi
+          test -f ".github/workflows/ekstrak.yml"
+          echo "✓ ekstrak.yml"
 
       - name: Commit and Push
         run: |
@@ -109,6 +104,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Extract Musickz project"
+          git commit -m "Extract base APK project"
 
           git push origin HEAD:main
