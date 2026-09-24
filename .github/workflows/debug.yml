@@ -6,59 +6,129 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   build-debug:
     name: Build AnimeKx Debug APK
     runs-on: ubuntu-latest
 
     steps:
+      # ==========================================
+      # CHECKOUT
+      # ==========================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # ==========================================
+      # SETUP PNPM
+      # ==========================================
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
 
+      # ==========================================
+      # SETUP NODE
+      # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
+          package-manager-cache: false
 
+      # ==========================================
+      # SETUP JAVA
+      # ==========================================
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
           cache: gradle
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # ==========================================
+      # VERIFY PACKAGE
+      # ==========================================
+      - name: Verify package.json
+        run: |
+          set -e
 
+          if [ ! -f package.json ]; then
+            echo "::error::package.json tidak ditemukan."
+            exit 1
+          fi
+
+          echo "✓ package.json ditemukan"
+
+      # ==========================================
+      # INSTALL DEPENDENCIES
+      # ==========================================
+      - name: Install dependencies
+        run: |
+          pnpm install
+
+      # ==========================================
+      # EXPO PREBUILD
+      # ==========================================
       - name: Expo prebuild
-        run: npx expo prebuild --platform android --clean
+        run: |
+          npx expo prebuild \
+            --platform android \
+            --clean
         env:
           EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
           EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
+      # ==========================================
+      # BUILD DEBUG APK
+      # ==========================================
       - name: Build Debug APK
         working-directory: android
         run: |
+          set -e
+
           chmod +x gradlew
+
           ./gradlew assembleDebug \
             -PreactNativeArchitectures=arm64-v8a \
             -PnewArchEnabled=false \
-            --no-daemon
+            --no-daemon \
+            --stacktrace
         env:
           EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
           EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
+      # ==========================================
+      # CHECK APK
+      # ==========================================
+      - name: Check APK
+        run: |
+          set -e
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "::error::APK tidak ditemukan."
+            exit 1
+          fi
+
+          echo "✓ APK berhasil dibuat"
+          ls -lh "$APK"
+
+      # ==========================================
+      # RENAME APK
+      # ==========================================
       - name: Rename APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             AnimeKx-debug.apk
+          cp \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            AnimeKx-debug.apk
 
+      # ==========================================
+      # UPLOAD APK
+      # ==========================================
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
