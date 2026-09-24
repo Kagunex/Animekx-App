@@ -1,0 +1,67 @@
+name: Build Debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-debug:
+    name: Build AnimeKx Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Expo prebuild
+        run: npx expo prebuild --platform android --clean
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
+          EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
+
+      - name: Build Debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug \
+            -PreactNativeArchitectures=arm64-v8a \
+            -PnewArchEnabled=false \
+            --no-daemon
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
+          EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             AnimeKx-debug.apk
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeKx-debug
+          path: AnimeKx-debug.apk
+          retention-days: 7
