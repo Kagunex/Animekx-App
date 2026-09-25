@@ -1,0 +1,243 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (must match the version in app.config.ts)"
+        required: false
+        default: "v5.7.0"
+
+env:
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate (typecheck, lint, tests)
+    runs-on: ubuntu-latest
+
+    # Advisory only: surfaces failures without blocking the APK.
+    continue-on-error: true
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_ANILIST_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_ANILIST_CLIENT_ID }}
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: ${{ secrets.EXPO_PUBLIC_ANILIST_GRAPHQL_URL }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+  build:
+    name: Build ${{ matrix.label }} APK (${{ github.event.inputs.tag || github.ref_name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - arch: arm64-v8a
+            label: arm64
+
+          - arch: armeabi-v7a
+            label: arm32
+
+          - arch: armeabi-v7a,arm64-v8a,x86_64
+            label: universal
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_ANILIST_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_ANILIST_CLIENT_ID }}
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: ${{ secrets.EXPO_PUBLIC_ANILIST_GRAPHQL_URL }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify release tag matches app version
+        run: |
+          APP_VERSION=$(grep -oE 'version: "[0-9]+\.[0-9]+\.[0-9]+"' app.config.ts | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+          echo "App version: $APP_VERSION"
+          echo "Release tag: $RELEASE_TAG"
+
+          test "v$APP_VERSION" = "$RELEASE_TAG" || {
+            echo "ERROR: tag $RELEASE_TAG does not match app version $APP_VERSION in app.config.ts"
+            exit 1
+          }
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify environment
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL"
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+          test -n "$EXPO_PUBLIC_ANILIST_CLIENT_ID"
+          test -n "$EXPO_PUBLIC_ANILIST_GRAPHQL_URL"
+          test -n "$EXPO_PUBLIC_API_BASE_URL"
+
+          echo "Required environment variables are configured."
+
+      - name: Export Android JavaScript bundle
+        run: npx expo export --platform android
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Verify Android project
+        run: |
+          test -f android/gradlew
+          test -d android/app
+          chmod +x android/gradlew
+
+      - name: Build APK (${{ matrix.label }})
+        run: |
+          cd android
+
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=${{ matrix.arch }} \
+            -PnewArchEnabled=false \
+            --no-daemon \
+            --stacktrace
+
+      - name: Validate APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+
+          test -n "$APK"
+          test -f "$APK"
+
+          echo "APK found:"
+          ls -lh "$APK"
+
+          echo "Checking APK integrity..."
+          unzip -t "$APK"
+
+          echo "SHA256:"
+          sha256sum "$APK"
+
+      - name: Rename APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+
+          cp "$APK" \
+            "aniraku-${RELEASE_TAG}-${{ matrix.label }}.apk"
+
+          echo "Built: aniraku-${RELEASE_TAG}-${{ matrix.label }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aniraku-${{ matrix.label }}
+          path: aniraku-${{ env.RELEASE_TAG }}-${{ matrix.label }}.apk
+          retention-days: 7
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: List APKs
+        run: |
+          ls -lh ./artifacts/*.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Aniraku ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+
+          body: |
+            ## v5.7.0 — Reliability, trust, and legal refresh
+
+            Three builds for full coverage (Android 9+).
+            The universal APK contains all architectures.
+
+            - `aniraku-v5.7.0-arm64.apk`
+            - `aniraku-v5.7.0-arm32.apk`
+            - `aniraku-v5.7.0-universal.apk`
+
+            ### Fixed and hardened
+
+            - Random fixed at the root: pool pages capped for AniList's 5,000-entry depth limit.
+            - Every request clamped.
+            - Deep-pool failures auto-recover with a friendly message.
+            - Home rails restored.
+            - Valid `FINISHED` filter for Just Finished.
+            - Shimmer placeholders while rails load.
+            - Deep-link-safe search.
+            - Sort/status/format parameters allowlisted.
+            - Malformed anime/episode/watch links show an error with go-back.
+            - Self-healing avatars.
+            - Poisoned cache eviction.
+            - Remote avatar fallback.
+            - Verified storage.
+            - 18+ gate on NSFW.
+            - Hardened account deletion.
+            - Comment fixes.
+            - Guest gating.
+            - Delete confirmation.
+            - Schedule empty state.
+            - Full DMCA procedure.
+            - Expanded Privacy Notice and Terms of Use.
+            - Unified contacts.
+            - Updated in-app legal screen.
+
+            ### Housekeeping
+
+            - Android versionCode: 67.
+
+            Download the APK, install, and allow install from unknown sources if prompted.
+
+          files: ./artifacts/*.apk
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
