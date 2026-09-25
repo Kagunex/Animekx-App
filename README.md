@@ -24,7 +24,7 @@
   &nbsp;
   <a href="https://github.com/Kagunex/Animekx-App">App Site</a>
   &nbsp;
-  <a href="https://github.com/Kagunex/Animekx-App/releases/latest">v5.7.0 Notes</a>
+  <a href="https://github.com/Kagunex/Animekx-App/releases/latest">v1.0.0 Notes</a>
   &nbsp;
   <a href="./SUPPORT.md">SUPPORT ANIMEKX</a>
 </div>
