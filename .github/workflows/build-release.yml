@@ -9,7 +9,7 @@ on:
       tag:
         description: "Release tag to build (must match the version in app.config.ts)"
         required: false
-        default: "v5.7.0"
+        default: "v1.0.0"
 
 env:
   RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
@@ -195,46 +195,14 @@ jobs:
           prerelease: false
 
           body: |
-            ## v5.7.0 — Reliability, trust, and legal refresh
+            ## v1.0.0 — Initial Release
 
-            Three builds for full coverage (Android 9+).
+            Three builds for Android 9+.
             The universal APK contains all architectures.
 
-            - `animekx-v5.7.0-arm64.apk`
-            - `animekx-v5.7.0-arm32.apk`
-            - `animekx-v5.7.0-universal.apk`
-
-            ### Fixed and hardened
-
-            - Random fixed at the root: pool pages capped for AniList's 5,000-entry depth limit.
-            - Every request clamped.
-            - Deep-pool failures auto-recover with a friendly message.
-            - Home rails restored.
-            - Valid `FINISHED` filter for Just Finished.
-            - Shimmer placeholders while rails load.
-            - Deep-link-safe search.
-            - Sort/status/format parameters allowlisted.
-            - Malformed anime/episode/watch links show an error with go-back.
-            - Self-healing avatars.
-            - Poisoned cache eviction.
-            - Remote avatar fallback.
-            - Verified storage.
-            - 18+ gate on NSFW.
-            - Hardened account deletion.
-            - Comment fixes.
-            - Guest gating.
-            - Delete confirmation.
-            - Schedule empty state.
-            - Full DMCA procedure.
-            - Expanded Privacy Notice and Terms of Use.
-            - Unified contacts.
-            - Updated in-app legal screen.
-
-            ### Housekeeping
-
-            - Android versionCode: 67.
-
-            Download the APK, install, and allow install from unknown sources if prompted.
+            - `animekx-v1.0.0-arm64.apk`
+            - `animekx-v1.0.0-arm32.apk`
+            - `animekx-v1.0.0-universal.apk`
 
           files: ./artifacts/*.apk
 
