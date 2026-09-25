@@ -14,51 +14,37 @@ jobs:
     name: Build AnimeKx Debug APK
     runs-on: ubuntu-latest
 
-    steps:
+    env:
+      EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
+      EXPO_PUBLIC_SUPABASE_URL: https://rhawxrrmxyvxuczhpegq4.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
-      # ==========================================
-      # CHECKOUT
-      # ==========================================
+    steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # ==========================================
-      # PNPM
-      # ==========================================
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9.12.0
 
-      # ==========================================
-      # NODE
-      # ==========================================
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
           node-version: 20
           package-manager-cache: false
 
-      # ==========================================
-      # JAVA
-      # ==========================================
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      # ==========================================
-      # CHECK PROJECT
-      # ==========================================
       - name: Check Expo project
         shell: bash
         run: |
           set -euo pipefail
-
-          echo "================================"
-          echo "CHECK EXPO PROJECT"
-          echo "================================"
 
           if [ ! -f package.json ]; then
             echo "::error::package.json tidak ditemukan."
@@ -67,16 +53,23 @@ jobs:
 
           echo "✓ package.json ditemukan"
 
-          if [ -f pnpm-lock.yaml ]; then
-            echo "✓ pnpm-lock.yaml ditemukan"
-          else
-            echo "⚠ pnpm-lock.yaml tidak ditemukan"
-            echo "Menggunakan pnpm install biasa."
+      - name: Check Supabase configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "::error::Supabase URL kosong."
+            exit 1
           fi
 
-      # ==========================================
-      # INSTALL DEPENDENCIES
-      # ==========================================
+          if [ -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Supabase key belum dibuat di GitHub Secrets."
+            exit 1
+          fi
+
+          echo "✓ Supabase configuration tersedia"
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -88,9 +81,6 @@ jobs:
             pnpm install
           fi
 
-      # ==========================================
-      # EXPO PREBUILD
-      # ==========================================
       - name: Expo prebuild
         shell: bash
         run: |
@@ -99,24 +89,14 @@ jobs:
           npx expo prebuild \
             --platform android \
             --clean
-        env:
-          EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
-          EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
-      # ==========================================
-      # VERIFY ANDROID PROJECT
-      # ==========================================
       - name: Verify Android project
         shell: bash
         run: |
           set -euo pipefail
 
-          echo "================================"
-          echo "CHECK ANDROID PROJECT"
-          echo "================================"
-
           if [ ! -d android ]; then
-            echo "::error::Folder android/ tidak dibuat oleh Expo prebuild."
+            echo "::error::Folder android/ tidak dibuat."
             exit 1
           fi
 
@@ -135,36 +115,21 @@ jobs:
             exit 1
           fi
 
-          echo "✓ android/"
-          echo "✓ android/gradlew"
-          echo "✓ Gradle Wrapper"
-          echo "✓ android/app"
+          echo "✓ Android project valid"
 
-      # ==========================================
-      # GRADLE
-      # ==========================================
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: true
 
-      # ==========================================
-      # CLEAN BUILD
-      # ==========================================
       - name: Clean Gradle
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
-
           chmod +x gradlew
+          ./gradlew clean --no-daemon
 
-          ./gradlew clean \
-            --no-daemon
-
-      # ==========================================
-      # BUILD DEBUG APK
-      # ==========================================
       - name: Build Debug APK
         working-directory: android
         shell: bash
@@ -177,13 +142,7 @@ jobs:
             --no-daemon \
             --stacktrace \
             --rerun-tasks
-        env:
-          EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
-          EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
 
-      # ==========================================
-      # CHECK APK EXISTS
-      # ==========================================
       - name: Check APK
         shell: bash
         run: |
@@ -193,26 +152,15 @@ jobs:
 
           if [ ! -f "$APK" ]; then
             echo "::error::app-debug.apk tidak ditemukan."
-
-            echo ""
-            echo "APK yang tersedia:"
             find android/app/build/outputs \
               -type f \
               -name "*.apk" \
               -print 2>/dev/null || true
-
             exit 1
           fi
 
-          echo "================================"
-          echo "APK DITEMUKAN"
-          echo "================================"
-
           ls -lh "$APK"
 
-      # ==========================================
-      # VALIDATE APK ZIP
-      # ==========================================
       - name: Validate APK
         shell: bash
         run: |
@@ -220,30 +168,9 @@ jobs:
 
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
 
-          echo "================================"
-          echo "VALIDATE APK"
-          echo "================================"
-
-          echo ""
-          echo "Testing ZIP integrity..."
-
           unzip -t "$APK"
-
-          echo ""
-          echo "================================"
-          echo "SHA256"
-          echo "================================"
-
           sha256sum "$APK"
 
-          echo ""
-          echo "================================"
-          echo "APK VALID"
-          echo "================================"
-
-      # ==========================================
-      # RENAME
-      # ==========================================
       - name: Rename APK
         shell: bash
         run: |
@@ -255,9 +182,6 @@ jobs:
 
           ls -lh AnimeKx-debug.apk
 
-      # ==========================================
-      # UPLOAD
-      # ==========================================
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
