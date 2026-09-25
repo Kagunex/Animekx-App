@@ -23,7 +23,6 @@ jobs:
     name: Validate (typecheck, lint, tests)
     runs-on: ubuntu-latest
 
-    # Advisory only: surfaces failures without blocking the APK.
     continue-on-error: true
 
     env:
@@ -157,14 +156,14 @@ jobs:
           APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
 
           cp "$APK" \
-            "aniraku-${RELEASE_TAG}-${{ matrix.label }}.apk"
+            "animekx-${RELEASE_TAG}-${{ matrix.label }}.apk"
 
-          echo "Built: aniraku-${RELEASE_TAG}-${{ matrix.label }}.apk"
+          echo "Built: animekx-${RELEASE_TAG}-${{ matrix.label }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: aniraku-${{ matrix.label }}
-          path: aniraku-${{ env.RELEASE_TAG }}-${{ matrix.label }}.apk
+          name: animekx-${{ matrix.label }}
+          path: animekx-${{ env.RELEASE_TAG }}-${{ matrix.label }}.apk
           retention-days: 7
 
   release:
@@ -191,7 +190,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          name: Aniraku ${{ env.RELEASE_TAG }}
+          name: AnimeKx ${{ env.RELEASE_TAG }}
           draft: false
           prerelease: false
 
@@ -201,9 +200,9 @@ jobs:
             Three builds for full coverage (Android 9+).
             The universal APK contains all architectures.
 
-            - `aniraku-v5.7.0-arm64.apk`
-            - `aniraku-v5.7.0-arm32.apk`
-            - `aniraku-v5.7.0-universal.apk`
+            - `animekx-v5.7.0-arm64.apk`
+            - `animekx-v5.7.0-arm32.apk`
+            - `animekx-v5.7.0-universal.apk`
 
             ### Fixed and hardened
 
