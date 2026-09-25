@@ -18,18 +18,12 @@ export type ParsedSubtitle = {
 };
 
 function timestampToSeconds(ts: string): number {
-  // Supports:
-  // hh:mm:ss.mmm
-  // mm:ss.mmm
-  // ss.mmm
-  // Also accepts comma as decimal separator.
   const cleaned = ts.trim().replace(",", ".");
   const parts = cleaned.split(":");
 
   if (parts.length === 0 || parts.length > 3) return NaN;
 
   let seconds = 0;
-
   const last = parts[parts.length - 1];
 
   const secMatch = last.match(/^(\d{1,3})(?:\.(\d{1,3}))?$/);
@@ -67,10 +61,6 @@ function timestampToSeconds(ts: string): number {
 }
 
 function cueTimestampToken(raw: string): string {
-  // Example:
-  // "00:00:01.000 align:start position:0%"
-  // -> "00:00:01.000"
-
   return raw
     .trim()
     .split(/\s+/)[0]
@@ -99,7 +89,6 @@ function parseVTT(content: string): ParsedSubtitle {
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
 
-  // Flexible WEBVTT header handling.
   const withoutHeader = normalized.replace(
     /^WEBVTT[^\n]*\n/,
     "",
@@ -116,7 +105,6 @@ function parseVTT(content: string): ParsedSubtitle {
 
     const upper = trimmed.toUpperCase();
 
-    // Ignore VTT metadata blocks.
     if (
       upper.startsWith("NOTE") ||
       upper.startsWith("STYLE") ||
@@ -136,7 +124,6 @@ function parseVTT(content: string): ParsedSubtitle {
     if (timeLineIdx < 0) continue;
 
     const timeLine = lines[timeLineIdx];
-
     const timeParts = timeLine.split("-->");
 
     if (timeParts.length < 2) continue;
@@ -298,7 +285,6 @@ function parseASS(content: string): ParsedSubtitle {
     }
 
     const value = trimmed.slice(9);
-
     const parts = value.split(",");
 
     if (parts.length < formatFields.length) {
@@ -353,13 +339,6 @@ function parseASS(content: string): ParsedSubtitle {
 export function detectSubtitleFormat(
   url: string,
 ): "vtt" | "srt" | "ass" | null {
-  // Backend URLs can be proxied:
-  // /api/v1/proxy?url=<encoded-url>
-  //
-  // Decode first so:
-  // %2Fsubtitle.vtt
-  // can still be detected.
-
   let haystack = String(url ?? "").toLowerCase();
 
   try {
@@ -406,8 +385,6 @@ export function detectSubtitleFormatFromContent(
     return "ass";
   }
 
-  // SRT and VTT both use "-->".
-  // VTT parser is tolerant of both formats.
   return head.includes("-->")
     ? "vtt"
     : "srt";
@@ -416,8 +393,7 @@ export function detectSubtitleFormatFromContent(
 /**
  * Subtitle language aliases.
  *
- * Everything related to Indonesian / Sub Indo
- * is normalized to "id".
+ * Indonesian / Sub Indo is normalized to "id".
  */
 const LANGUAGE_ALIASES: Record<string, string> = {
   // English
@@ -436,7 +412,7 @@ const LANGUAGE_ALIASES: Record<string, string> = {
   "bahasa-indonesia": "id",
   "bahasa_indonesia": "id",
   "sub indo": "id",
-  "subindo": "id",
+  subindo: "id",
 
   // Spanish
   spanish: "es",
@@ -477,7 +453,6 @@ const LANGUAGE_ALIASES: Record<string, string> = {
  * Normalize subtitle language to a short language code.
  *
  * Examples:
- *
  * Indonesia       -> id
  * Indonesian      -> id
  * Indo            -> id
@@ -499,18 +474,15 @@ export function normalizeSubtitleLang(
     return "";
   }
 
-  // Normalize separators.
   const normalized = raw
     .replace(/_/g, "-")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Direct alias first.
   if (LANGUAGE_ALIASES[normalized]) {
     return LANGUAGE_ALIASES[normalized];
   }
 
-  // Remove common subtitle labels.
   const cleaned = normalized
     .replace(/\[cc\]/gi, "")
     .replace(/\[sdh\]/gi, "")
@@ -522,7 +494,6 @@ export function normalizeSubtitleLang(
     return LANGUAGE_ALIASES[cleaned];
   }
 
-  // Extract the first alphabetic language token.
   const base =
     cleaned.split(/[^a-z]+/)[0] ||
     cleaned;
@@ -540,9 +511,6 @@ export type SubtitleTrackLike = {
   lang?: string;
 };
 
-/**
- * Checks whether a subtitle track is Indonesian.
- */
 export function isIndonesianSubtitle(
   track: SubtitleTrackLike,
 ): boolean {
@@ -552,9 +520,6 @@ export function isIndonesianSubtitle(
   return lang === "id" || label === "id";
 }
 
-/**
- * Checks whether a subtitle track is English.
- */
 export function isEnglishSubtitle(
   track: SubtitleTrackLike,
 ): boolean {
@@ -567,13 +532,14 @@ export function isEnglishSubtitle(
 /**
  * Find the best subtitle track.
  *
- * Priority:
+ * Behavior:
  *
- * 1. Exact preferred language
- * 2. Prefix/variant preferred language
- * 3. Indonesian when preferred language is empty
- * 4. English fallback
- * 5. First available subtitle
+ * - No preference -> preserve original first-track behavior.
+ * - Preferred language -> exact match first.
+ * - Then language variant/prefix match.
+ * - Then Indonesian fallback.
+ * - Then English fallback.
+ * - Finally first available track.
  */
 export function matchSubtitleTrack(
   tracks:
@@ -585,42 +551,35 @@ export function matchSubtitleTrack(
     return null;
   }
 
-  /*
-   * If player doesn't provide a language preference,
-   * Animekz defaults to Indonesian / Sub Indo.
-   */
+  // Preserve the original behavior when no language
+  // preference is supplied.
+  if (!preferredLanguage) {
+    return tracks[0] ?? null;
+  }
+
   const preferred = normalizeSubtitleLang(
-    preferredLanguage || "id",
+    preferredLanguage,
   );
 
-  // --------------------------------------------------
-  // 1. Exact language match
-  // --------------------------------------------------
+  if (!preferred) {
+    return tracks[0] ?? null;
+  }
 
+  // 1. Exact language match
   for (const track of tracks) {
     if (
-      normalizeSubtitleLang(track.lang) ===
-      preferred
-    ) {
-      return track;
-    }
-
-    if (
-      normalizeSubtitleLang(track.label) ===
-      preferred
+      normalizeSubtitleLang(track.lang) === preferred ||
+      normalizeSubtitleLang(track.label) === preferred
     ) {
       return track;
     }
   }
 
-  // --------------------------------------------------
   // 2. Prefix / variant match
   //
   // Examples:
   // id -> id-ID
   // en -> en-US
-  // --------------------------------------------------
-
   for (const track of tracks) {
     const lang = normalizeSubtitleLang(track.lang);
     const label = normalizeSubtitleLang(track.label);
@@ -646,12 +605,9 @@ export function matchSubtitleTrack(
     }
   }
 
-  // --------------------------------------------------
-  // 3. If no preference was supplied originally,
-  //    explicitly prioritize Indonesian.
-  // --------------------------------------------------
-
-  if (!preferredLanguage) {
+  // 3. If requested language is unavailable,
+  // prefer Indonesian as a useful fallback.
+  if (preferred !== "id") {
     for (const track of tracks) {
       if (isIndonesianSubtitle(track)) {
         return track;
@@ -659,10 +615,7 @@ export function matchSubtitleTrack(
     }
   }
 
-  // --------------------------------------------------
-  // 4. English fallback
-  // --------------------------------------------------
-
+  // 4. English fallback.
   if (preferred !== "en") {
     for (const track of tracks) {
       if (isEnglishSubtitle(track)) {
@@ -671,10 +624,7 @@ export function matchSubtitleTrack(
     }
   }
 
-  // --------------------------------------------------
-  // 5. Last resort
-  // --------------------------------------------------
-
+  // 5. Last resort.
   return tracks[0] ?? null;
 }
 
@@ -709,4 +659,4 @@ export function findActiveCues(
       currentTime >= cue.startTime &&
       currentTime <= cue.endTime,
   );
-}
+    }
