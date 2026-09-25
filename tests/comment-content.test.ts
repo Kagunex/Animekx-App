@@ -16,6 +16,6 @@ describe("shared comment content", () => {
   it("uses the profile display name, then username, then an honest fallback for every comment surface", () => {
     expect(commentAuthorLabel({ display_name: "Rin", username: "rin_user", avatar_url: null })).toBe("Rin");
     expect(commentAuthorLabel({ display_name: null, username: "rin_user", avatar_url: null })).toBe("rin_user");
-    expect(commentAuthorLabel(null)).toBe("Aniraku member");
+    expect(commentAuthorLabel(null)).toBe("Animekz member");
   });
 });
