@@ -1,0 +1,109 @@
+name: Extract Base APK ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find ZIP
+        id: zip
+        run: |
+          set -e
+
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "::error::File ZIP base APK tidak ditemukan di root repository."
+            exit 1
+          fi
+
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "ZIP ditemukan: $ZIP"
+
+      - name: Extract Base APK
+        run: |
+          set -e
+
+          ZIP="${{ steps.zip.outputs.zip }}"
+          TEMP="/tmp/base-apk"
+
+          rm -rf "$TEMP"
+          mkdir -p "$TEMP"
+
+          unzip -q "$ZIP" -d "$TEMP"
+
+          ROOT="$TEMP"
+
+          # Deteksi folder pembungkus ZIP
+          COUNT=$(find "$ROOT" -mindepth 1 -maxdepth 1 | wc -l)
+
+          if [ "$COUNT" -eq 1 ]; then
+            ONLY=$(find "$ROOT" -mindepth 1 -maxdepth 1 | head -n 1)
+
+            if [ -d "$ONLY" ]; then
+              ROOT="$ONLY"
+            fi
+          fi
+
+          echo "Project root: $ROOT"
+
+          # Jangan menimpa workflow GitHub
+          rm -rf "$ROOT/.github"
+
+          # Salin isi base APK ke root repository
+          cp -a "$ROOT"/. .
+
+      - name: Remove ZIP
+        run: |
+          rm -f "${{ steps.zip.outputs.zip }}"
+
+      - name: Verify
+        run: |
+          set -e
+
+          echo "=== BASE APK ==="
+
+          if [ -f "gradlew" ]; then
+            echo "✓ gradlew"
+          fi
+
+          if [ -d "app" ]; then
+            echo "✓ app/"
+          fi
+
+          if [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ]; then
+            echo "✓ settings.gradle"
+          fi
+
+          echo ""
+          echo "=== WORKFLOW ==="
+
+          test -f ".github/workflows/ekstrak.yml"
+          echo "✓ ekstrak.yml"
+
+      - name: Commit and Push
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Tidak ada perubahan."
+            exit 0
+          fi
+
+          git commit -m "Extract base APK project"
+
+          git push origin HEAD:main

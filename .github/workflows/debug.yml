@@ -1,0 +1,191 @@
+name: Build Debug APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug:
+    name: Build AnimeKx Debug APK
+    runs-on: ubuntu-latest
+
+    env:
+      EXPO_PUBLIC_API_BASE_URL: https://api.aniraku.tech
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: https://graphql.anilist.co
+      EXPO_PUBLIC_SUPABASE_URL: https://rhawxrrmxyvxuczhpegq4.supabase.co
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Check Expo project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f package.json ]; then
+            echo "::error::package.json tidak ditemukan."
+            exit 1
+          fi
+
+          echo "✓ package.json ditemukan"
+
+      - name: Check Supabase configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${EXPO_PUBLIC_SUPABASE_URL:-}" ]; then
+            echo "::error::Supabase URL kosong."
+            exit 1
+          fi
+
+          if [ -z "${EXPO_PUBLIC_SUPABASE_ANON_KEY:-}" ]; then
+            echo "::error::Supabase key belum dibuat di GitHub Secrets."
+            exit 1
+          fi
+
+          echo "✓ Supabase configuration tersedia"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install
+          fi
+
+      - name: Expo prebuild
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npx expo prebuild \
+            --platform android \
+            --clean
+
+      - name: Verify Android project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -d android ]; then
+            echo "::error::Folder android/ tidak dibuat."
+            exit 1
+          fi
+
+          if [ ! -f android/gradlew ]; then
+            echo "::error::android/gradlew tidak ditemukan."
+            exit 1
+          fi
+
+          if [ ! -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            echo "::error::Gradle Wrapper tidak ditemukan."
+            exit 1
+          fi
+
+          if [ ! -d android/app ]; then
+            echo "::error::android/app tidak ditemukan."
+            exit 1
+          fi
+
+          echo "✓ Android project valid"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
+
+      - name: Clean Gradle
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew clean --no-daemon
+
+      - name: Build Debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./gradlew assembleDebug \
+            -PreactNativeArchitectures=arm64-v8a \
+            -PnewArchEnabled=false \
+            --no-daemon \
+            --stacktrace \
+            --rerun-tasks
+
+      - name: Check APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "::error::app-debug.apk tidak ditemukan."
+            find android/app/build/outputs \
+              -type f \
+              -name "*.apk" \
+              -print 2>/dev/null || true
+            exit 1
+          fi
+
+          ls -lh "$APK"
+
+      - name: Validate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+
+          unzip -t "$APK"
+          sha256sum "$APK"
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cp \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            AnimeKx-debug.apk
+
+          ls -lh AnimeKx-debug.apk
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnimeKx-debug
+          path: AnimeKx-debug.apk
+          if-no-files-found: error
+          retention-days: 7

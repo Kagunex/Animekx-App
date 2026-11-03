@@ -1,0 +1,391 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (must match the version in app.config.ts)"
+        required: false
+        default: "v1.0.0"
+
+env:
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+
+  # ============================================================
+  # VALIDATE
+  # ============================================================
+
+  validate:
+    name: Validate (typecheck, lint, tests)
+    runs-on: ubuntu-latest
+
+    continue-on-error: true
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_ANILIST_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_ANILIST_CLIENT_ID }}
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: ${{ secrets.EXPO_PUBLIC_ANILIST_GRAPHQL_URL }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tests
+        run: pnpm test
+
+
+  # ============================================================
+  # BUILD APK
+  # ============================================================
+
+  build:
+    name: Build ${{ matrix.label }} APK (${{ github.event.inputs.tag || github.ref_name }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+
+          - arch: arm64-v8a
+            label: arm64
+
+          - arch: armeabi-v7a
+            label: arm32
+
+          - arch: armeabi-v7a,arm64-v8a,x86_64
+            label: universal
+
+    env:
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+      EXPO_PUBLIC_ANILIST_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_ANILIST_CLIENT_ID }}
+      EXPO_PUBLIC_ANILIST_GRAPHQL_URL: ${{ secrets.EXPO_PUBLIC_ANILIST_GRAPHQL_URL }}
+      EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+
+    steps:
+
+      # --------------------------------------------------------
+      # CHECKOUT
+      # --------------------------------------------------------
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      # --------------------------------------------------------
+      # VERSION CHECK
+      # --------------------------------------------------------
+
+      - name: Verify release tag matches app version
+        run: |
+          APP_VERSION=$(grep -oE 'version: "[0-9]+\.[0-9]+\.[0-9]+"' app.config.ts \
+            | head -1 \
+            | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+
+          echo "App version: $APP_VERSION"
+          echo "Release tag: $RELEASE_TAG"
+
+          test "v$APP_VERSION" = "$RELEASE_TAG" || {
+            echo "ERROR: tag $RELEASE_TAG does not match app version $APP_VERSION in app.config.ts"
+            exit 1
+          }
+
+          echo "Version check passed."
+
+
+      # --------------------------------------------------------
+      # NODE / PNPM
+      # --------------------------------------------------------
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+
+      # --------------------------------------------------------
+      # JAVA
+      # --------------------------------------------------------
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+
+      # --------------------------------------------------------
+      # DEPENDENCIES
+      # --------------------------------------------------------
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+
+      # --------------------------------------------------------
+      # ENVIRONMENT CHECK
+      # --------------------------------------------------------
+
+      - name: Verify environment
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL"
+          test -n "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+          test -n "$EXPO_PUBLIC_ANILIST_CLIENT_ID"
+          test -n "$EXPO_PUBLIC_ANILIST_GRAPHQL_URL"
+          test -n "$EXPO_PUBLIC_API_BASE_URL"
+
+          echo "Required environment variables are configured."
+
+
+      # --------------------------------------------------------
+      # SUPABASE CONNECTIVITY
+      # --------------------------------------------------------
+
+      - name: Verify Supabase connectivity
+        run: |
+          echo "Checking Supabase endpoint..."
+
+          HTTP_STATUS=$(curl -sS \
+            -o /dev/null \
+            -w "%{http_code}" \
+            --max-time 15 \
+            "$EXPO_PUBLIC_SUPABASE_URL/auth/v1/settings")
+
+          echo "Supabase HTTP status: $HTTP_STATUS"
+
+          test "$HTTP_STATUS" -ge 200
+          test "$HTTP_STATUS" -lt 500
+
+          echo "Supabase endpoint is reachable."
+
+
+      # --------------------------------------------------------
+      # EXPO ENVIRONMENT
+      # --------------------------------------------------------
+
+      - name: Verify Expo environment
+        run: |
+          node <<'NODE'
+          const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+          const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+          if (!url) {
+            throw new Error(
+              "EXPO_PUBLIC_SUPABASE_URL is missing"
+            );
+          }
+
+          if (!key) {
+            throw new Error(
+              "EXPO_PUBLIC_SUPABASE_ANON_KEY is missing"
+            );
+          }
+
+          if (!/^https:\/\/[^/]+\.supabase\.co$/.test(url)) {
+            throw new Error(
+              `Invalid Supabase URL: ${url}`
+            );
+          }
+
+          console.log("Supabase URL:", url);
+          console.log("Supabase anon/publishable key: SET");
+          console.log("Expo environment is ready.");
+          NODE
+
+
+      # --------------------------------------------------------
+      # EXPO EXPORT
+      # --------------------------------------------------------
+
+      - name: Export Android JavaScript bundle
+        run: npx expo export --platform android
+
+
+      # --------------------------------------------------------
+      # EXPO PREBUILD
+      # --------------------------------------------------------
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --clean
+
+
+      # --------------------------------------------------------
+      # VERIFY ANDROID PROJECT
+      # --------------------------------------------------------
+
+      - name: Verify Android project
+        run: |
+          test -f android/gradlew
+          test -d android/app
+
+          chmod +x android/gradlew
+
+          echo "Android project verified."
+
+
+      # --------------------------------------------------------
+      # BUILD APK
+      # --------------------------------------------------------
+
+      - name: Build APK (${{ matrix.label }})
+        run: |
+          cd android
+
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=${{ matrix.arch }} \
+            -PnewArchEnabled=false \
+            --no-daemon \
+            --stacktrace
+
+
+      # --------------------------------------------------------
+      # VALIDATE APK
+      # --------------------------------------------------------
+
+      - name: Validate APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release \
+            -name "*.apk" \
+            | head -1)
+
+          test -n "$APK"
+          test -f "$APK"
+
+          echo "APK found:"
+          ls -lh "$APK"
+
+          echo "Checking APK integrity..."
+
+          unzip -t "$APK"
+
+          echo "SHA256:"
+          sha256sum "$APK"
+
+
+      # --------------------------------------------------------
+      # RENAME APK
+      # --------------------------------------------------------
+
+      - name: Rename APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release \
+            -name "*.apk" \
+            | head -1)
+
+          cp "$APK" \
+            "animekx-${RELEASE_TAG}-${{ matrix.label }}.apk"
+
+          echo "Built:"
+          echo "animekx-${RELEASE_TAG}-${{ matrix.label }}.apk"
+
+
+      # --------------------------------------------------------
+      # UPLOAD ARTIFACT
+      # --------------------------------------------------------
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: animekx-${{ matrix.label }}
+          path: animekx-${{ env.RELEASE_TAG }}-${{ matrix.label }}.apk
+          retention-days: 7
+
+
+  # ============================================================
+  # GITHUB RELEASE
+  # ============================================================
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+
+      - name: List APKs
+        run: |
+          echo "Release APKs:"
+          ls -lh ./artifacts/*.apk
+
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: AnimeKx ${{ env.RELEASE_TAG }}
+
+          draft: false
+          prerelease: false
+
+          body: |
+            ## AnimeKx v1.0.0
+
+            Initial release of AnimeKx.
+
+            ### APK builds
+
+            - `animekx-v1.0.0-arm64.apk`
+            - `animekx-v1.0.0-arm32.apk`
+            - `animekx-v1.0.0-universal.apk`
+
+            ### Architectures
+
+            - ARM64
+            - ARM32
+            - Universal
+
+            Android 9+ supported.
+
+          files: ./artifacts/*.apk
+
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,889 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  currentAnimeSeason,
+  getHomeAnime,
+  getHomeRailAnime,
+} from "@/lib/anilist";
+import { nsfwFilterParam, useNsfwPreference } from "@/lib/nsfw-preference";
+import { animeTitle } from "@/lib/types";
+import { hapticLight } from "@/lib/haptics";
+import { usePrefetchAnime } from "@/lib/prefetch";
+import { AnimeRail } from "@/components/anime-rail";
+import { ErrorState } from "@/components/async-state";
+import { nothing } from "@/components/nothing-ui";
+import {
+  SkeletonCard,
+  SkeletonRail,
+  SkeletonHero,
+} from "@/components/skeleton";
+import {
+  NativeScreen,
+  SearchAction,
+  NotificationAction,
+} from "@/components/screen";
+import { NotificationSheet } from "@/components/notification-sheet";
+import { AppIcon } from "@/components/app-icon";
+import { AnimeKzHeaderLogo } from "@/components/animekz-logo";
+import { InAppEpisodeAlertMonitor } from "@/hooks/use-in-app-episode-alerts";
+import { useWatchHistory } from "@/hooks/use-watch-history";
+
+function titleFacts(
+  format?: string | null,
+  episodes?: number | null,
+  score?: number | null,
+) {
+  return [
+    format,
+    episodes ? `${episodes} EP` : null,
+    score ? `${Math.round(score)}%` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function HomeHeader({ onNotif }: { onNotif: () => void }) {
+  return (
+    <View style={styles.homeHeader}>
+      <View style={styles.brandLockup}>
+        <AnimeKzHeaderLogo width={38} />
+        <Text style={styles.brandName}>AnimeKz</Text>
+      </View>
+      <View style={styles.headerActions}>
+        <SearchAction tone="light" />
+        <NotificationAction tone="light" onPress={onNotif} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Profil"
+          onPress={() => router.push("/(tabs)/profile" as never)}
+          style={({ pressed }) => [styles.avatarBtn, pressed && styles.pressed]}
+        >
+          <AppIcon name="account" size={18} color="#142B4B" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ContinueCard({
+  entry,
+}: {
+  entry: {
+    anime_id: number;
+    episode_number: number;
+    progress: number;
+    duration?: number | null;
+    anime_title?: string | null;
+    anime_cover?: string | null;
+    episode_thumbnail?: string | null;
+  };
+}) {
+  const [failed, setFailed] = useState(false);
+  const [epThumbFailed, setEpThumbFailed] = useState(false);
+  const progress =
+    entry.duration && entry.duration > 0
+      ? Math.min(100, (entry.progress / entry.duration) * 100)
+      : 0;
+  const epThumb =
+    !epThumbFailed && entry.episode_thumbnail ? entry.episode_thumbnail : null;
+  const cover = !failed && entry.anime_cover ? entry.anime_cover : null;
+  const imageUri = epThumb || cover;
+  return (
+    <Pressable
+      onPress={() => {
+        hapticLight();
+        router.push({
+          pathname: "/watch/[id]",
+          params: {
+            id: String(entry.anime_id),
+            episode: String(entry.episode_number),
+            title: entry.anime_title || "",
+            image: entry.anime_cover || "",
+          },
+        } as never);
+      }}
+      accessibilityRole="button"
+      accessibilityLabel={`Lanjutkan ${entry.anime_title || "Untitled"} episode ${entry.episode_number}`}
+      style={({ pressed }) => [styles.continueCard, pressed && styles.pressed]}
+    >
+      <View style={styles.continueImageWrap}>
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            recyclingKey={imageUri}
+            onError={() => (epThumb ? setEpThumbFailed(true) : setFailed(true))}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+          />
+        ) : (
+          <View style={styles.continueImageFallback}>
+            <Text style={styles.continueImageFallbackText}>
+              {(entry.anime_title || "A").charAt(0)}
+            </Text>
+          </View>
+        )}
+        <View style={styles.continueOverlay}>
+          <View style={styles.continuePlayBadge}>
+            <AppIcon name="play" size={12} color={nothing.white} />
+          </View>
+        </View>
+        <View style={styles.continueProgress}>
+          <View
+            style={[styles.continueProgressFill, { width: `${progress}%` }]}
+          />
+        </View>
+      </View>
+      <View style={styles.continueInfo}>
+        <Text style={styles.continueTitle} numberOfLines={1}>
+          {entry.anime_title || "Untitled"}
+        </Text>
+        <Text style={styles.continueMeta}>
+          EP {String(entry.episode_number).padStart(2, "0")}
+          {progress > 0 ? ` · ${Math.round(progress)}%` : ""}
+        </Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function ContinueWatchingRail() {
+  const { history } = useWatchHistory();
+  if (!history.isSuccess) return null;
+  if (!history.data?.length) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>Continue Watching</Text>
+        </View>
+        <View style={styles.continueEmpty}>
+          <Text style={styles.continueEmptyTitle}>No watch history yet</Text>
+          <Text style={styles.continueEmptyText}>
+            Start watching to see your progress here.
+          </Text>
+          <Pressable
+            onPress={() => router.push("/catalog" as never)}
+            style={({ pressed }) => [
+              styles.browseBtn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.browseBtnText}>Explore anime</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
+  const recent = history.data.slice(0, 10);
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Continue Watching</Text>
+        <Pressable onPress={() => router.push("/library" as never)}>
+          <Text style={styles.seeAll}>See All</Text>
+        </Pressable>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.continueList}
+      >
+        {recent.map((entry) => (
+          <ContinueCard
+            key={`${entry.anime_id}:${entry.episode_number}`}
+            entry={entry}
+          />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function TrendingGrid({
+  items,
+}: {
+  items: {
+    id: number;
+    coverImage?: { large?: string | null; extraLarge?: string | null } | null;
+    bannerImage?: string | null;
+    averageScore?: number | null;
+    format?: string | null;
+    episodes?: number | null;
+    [key: string]: any;
+  }[];
+}) {
+  const prefetch = usePrefetchAnime();
+  if (!items.length) return null;
+  return (
+    <View style={styles.section}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>Trending Anime</Text>
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/search",
+              params: { sort: "TRENDING_DESC", title: "Trending" },
+            } as never)
+          }
+        >
+          <Text style={styles.seeAll}>See All</Text>
+        </Pressable>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.trendingList}
+      >
+        {items.slice(0, 12).map((item, index) => (
+          <Pressable
+            key={item.id}
+            onPress={() => {
+              hapticLight();
+              prefetch(item.id);
+              router.push(`/anime/${item.id}` as never);
+            }}
+            style={({ pressed }) => [
+              styles.trendingCard,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.trendingCardImage}>
+              <Image
+                source={{
+                  uri:
+                    item.coverImage?.extraLarge || item.coverImage?.large || "",
+                }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                transition={0}
+                cachePolicy="memory-disk"
+              />
+              <View style={styles.rankBadge}>
+                <Text style={styles.rankBadgeText}>
+                  {String(index + 1).padStart(2, "0")}
+                </Text>
+              </View>
+              {item.averageScore ? (
+                <View style={styles.ratingBadge}>
+                  <Text style={styles.ratingBadgeText}>
+                    {(item.averageScore / 10).toFixed(1)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.trendingCardTitle} numberOfLines={2}>
+              {animeTitle(item as any)}
+            </Text>
+            <Text style={styles.trendingCardMeta} numberOfLines={1}>
+              {titleFacts(item.format, item.episodes, null)}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function RailPlaceholder({ title }: { title: string }) {
+  return (
+    <View style={styles.section} accessibilityLabel={`Loading ${title}`}>
+      <View style={styles.sectionHead}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.trendingList}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <SkeletonRail key={i} />
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+export default function HomeScreen() {
+  const prefetch = usePrefetchAnime();
+  const nsfw = useNsfwPreference();
+  const isAdultParam = nsfwFilterParam(nsfw.enabled);
+  const [notifSheetVisible, setNotifSheetVisible] = useState(false);
+  const home = useQuery({
+    queryKey: ["home-anime", isAdultParam],
+    queryFn: () => getHomeAnime(isAdultParam),
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+  });
+  const rails = useQuery({
+    queryKey: ["home-rails", isAdultParam],
+    queryFn: () => getHomeRailAnime(isAdultParam),
+    staleTime: 10 * 60_000,
+    retry: 2,
+    retryDelay: 1_500,
+  });
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([home.refetch(), rails.refetch()]);
+    setRefreshing(false);
+  };
+
+  if (home.isPending) {
+    return (
+      <NativeScreen scroll={false} tone="light">
+        <InAppEpisodeAlertMonitor />
+        <HomeHeader onNotif={() => setNotifSheetVisible(true)} />
+        <ScrollView
+          contentContainerStyle={[styles.skeletonContainer, styles.scrollPad]}
+          showsVerticalScrollIndicator={false}
+        >
+          <SkeletonHero />
+          <Text style={styles.skeletonRailLabel}>TRENDING</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.skeletonRailRow}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonRail key={i} />
+            ))}
+          </ScrollView>
+          <Text style={styles.skeletonRailLabel}>POPULER</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.skeletonRailRow}
+          >
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </ScrollView>
+        </ScrollView>
+        <NotificationSheet
+          visible={notifSheetVisible}
+          onClose={() => setNotifSheetVisible(false)}
+        />
+      </NativeScreen>
+    );
+  }
+
+  if (home.isError || !home.data) {
+    return (
+      <NativeScreen scroll={false} tone="light" style={styles.flexPad}>
+        <InAppEpisodeAlertMonitor />
+        <HomeHeader onNotif={() => setNotifSheetVisible(true)} />
+        <ErrorState
+          message={home.error?.message ?? "Could not load anime."}
+          onRetry={() => void home.refetch()}
+        />
+        <NotificationSheet
+          visible={notifSheetVisible}
+          onClose={() => setNotifSheetVisible(false)}
+        />
+      </NativeScreen>
+    );
+  }
+
+  const hero = home.data.trending[0] ?? null;
+
+  return (
+    <NativeScreen scroll={false} tone="light">
+      <InAppEpisodeAlertMonitor />
+      <HomeHeader onNotif={() => setNotifSheetVisible(true)} />
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, styles.scrollPad]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={nothing.red}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {hero ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${animeTitle(hero)}`}
+            onPress={() => {
+              hapticLight();
+              prefetch(hero.id);
+              router.push(`/anime/${hero.id}` as never);
+            }}
+            style={({ pressed }) => [styles.hero, pressed && styles.pressed]}
+          >
+            <View style={styles.heroFallback}>
+              <Text style={styles.heroFallbackText}>
+                {animeTitle(hero).charAt(0)}
+              </Text>
+            </View>
+            <Image
+              source={{
+                uri:
+                  hero.bannerImage ||
+                  hero.coverImage?.extraLarge ||
+                  hero.coverImage?.large ||
+                  "",
+              }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={0}
+              cachePolicy="memory-disk"
+            />
+            <View style={styles.heroMask} />
+            <View style={styles.heroContent}>
+              <View style={styles.heroBottom}>
+                <View style={styles.trendingBadge}>
+                  <AppIcon name="fire" size={13} color="#FFFFFF" />
+                  <Text style={styles.trendingBadgeText}>TRENDING #1</Text>
+                </View>
+                <View style={styles.heroGenres}>
+                  {(hero.genres || []).slice(0, 3).map((g: string) => (
+                    <View key={g} style={styles.genreChip}>
+                      <Text style={styles.genreChipText}>{g}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {animeTitle(hero)}
+                </Text>
+                <Text style={styles.heroMeta}>
+                  {[
+                    hero.season
+                      ? `${hero.season}${hero.seasonYear ? ` ${hero.seasonYear}` : ""}`
+                      : null,
+                    hero.episodes ? `${hero.episodes} Episodes` : null,
+                    hero.averageScore
+                      ? `${Math.round(hero.averageScore)}%`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+                {hero.description ? (
+                  <Text style={styles.heroDesc} numberOfLines={2}>
+                    {String(hero.description).replace(/<[^>]+>/g, "")}
+                  </Text>
+                ) : null}
+                <View style={styles.heroActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Watch now"
+                    style={({ pressed }) => [
+                      styles.heroPlayBtn,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => {
+                      hapticLight();
+                      prefetch(hero.id);
+                      router.push(`/anime/${hero.id}` as never);
+                    }}
+                  >
+                    <AppIcon name="play" size={19} color="#FFFFFF" />
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.heroListBtn,
+                      pressed && styles.pressed,
+                    ]}
+                    onPress={() => {
+                      prefetch(hero.id);
+                      router.push(`/anime/${hero.id}` as never);
+                    }}
+                  >
+                    <AppIcon name="bookmark" size={18} color={nothing.white} />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Pressable>
+        ) : null}
+
+        <TrendingGrid items={home.data.trending.slice(1)} />
+        <ContinueWatchingRail />
+
+        {rails.data?.ongoing?.length ? (
+          <AnimeRail
+            label=""
+            title="Top Airing"
+            items={rails.data.ongoing}
+            light
+            seeAllParams={{
+              status: "RELEASING",
+              sort: "POPULARITY_DESC",
+              title: "Top Airing",
+            }}
+          />
+        ) : rails.isPending ? (
+          <RailPlaceholder title="Top Airing" />
+        ) : null}
+
+        {home.data.seasonal.length ? (
+          <AnimeRail
+            label=""
+            title="Popular This Season"
+            items={home.data.seasonal}
+            light
+            seeAllParams={{
+              ...currentAnimeSeason(),
+              seasonYear: String(currentAnimeSeason().seasonYear),
+              sort: "POPULARITY_DESC",
+              title: "Popular This Season",
+            }}
+          />
+        ) : null}
+
+        {home.data.popular.length ? (
+          <AnimeRail
+            label=""
+            title="Recommended Anime"
+            items={home.data.popular}
+            light
+            seeAllParams={{
+              sort: "POPULARITY_DESC",
+              title: "Recommended Anime",
+            }}
+          />
+        ) : null}
+
+        {rails.data?.topMovies?.length ? (
+          <AnimeRail
+            label=""
+            title="Popular Movies"
+            items={rails.data.topMovies}
+            light
+            seeAllParams={{
+              format: "MOVIE",
+              sort: "SCORE_DESC",
+              title: "Popular Movies",
+            }}
+          />
+        ) : rails.isPending ? (
+          <RailPlaceholder title="Popular Movies" />
+        ) : null}
+
+        {rails.data?.justFinished?.length ? (
+          <AnimeRail
+            label=""
+            title="Recently Completed"
+            items={rails.data.justFinished}
+            light
+            seeAllParams={{
+              status: "FINISHED",
+              sort: "END_DATE_DESC",
+              title: "Recently Completed",
+            }}
+          />
+        ) : rails.isPending ? (
+          <RailPlaceholder title="Recently Completed" />
+        ) : null}
+
+        {home.data.upcoming.length ? (
+          <AnimeRail
+            label=""
+            title="Coming Soon"
+            items={home.data.upcoming}
+            light
+            seeAllParams={{
+              status: "NOT_YET_RELEASED",
+              sort: "POPULARITY_DESC",
+              title: "Coming Soon",
+            }}
+          />
+        ) : null}
+      </ScrollView>
+      <NotificationSheet
+        visible={notifSheetVisible}
+        onClose={() => setNotifSheetVisible(false)}
+      />
+    </NativeScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  homeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingBottom: 6,
+    paddingHorizontal: 18,
+  },
+  brandLockup: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brandName: {
+    color: "#142B4B",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  avatarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EAF3FF",
+    borderWidth: 1,
+    borderColor: "#D9E7F8",
+  },
+  scrollContent: { gap: 23, paddingBottom: 8, backgroundColor: "#F5F8FF" },
+  skeletonContainer: { gap: 18 },
+  skeletonRailLabel: {
+    color: nothing.muted,
+    fontWeight: "700",
+    fontSize: 11,
+    letterSpacing: 0.6,
+  },
+  skeletonRailRow: { gap: 10 },
+
+  hero: {
+    height: 224,
+    minHeight: 224,
+    marginHorizontal: -18,
+    overflow: "hidden",
+    backgroundColor: nothing.raised,
+    borderRadius: 22,
+    marginTop: 2,
+  },
+  heroFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: nothing.elevated,
+  },
+  heroFallbackText: { color: nothing.dim, fontSize: 72, fontWeight: "800" },
+  heroMask: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "transparent",
+  },
+  heroContent: { flex: 1, justifyContent: "flex-end" },
+  heroBottom: {
+    gap: 8,
+    padding: 18,
+    paddingTop: 80,
+    backgroundColor: "rgba(7,20,38,0.84)",
+  },
+  trendingBadge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: "#1677FF",
+  },
+  trendingBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  heroGenres: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  genreChip: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(22,119,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(22,119,255,0.32)",
+  },
+  genreChipText: { color: nothing.accent, fontSize: 10, fontWeight: "700" },
+  heroTitle: {
+    color: nothing.white,
+    fontWeight: "800",
+    fontSize: 22,
+    letterSpacing: -0.5,
+    lineHeight: 25,
+  },
+  heroMeta: { color: nothing.muted, fontSize: 12, fontWeight: "600" },
+  heroDesc: { color: nothing.muted, fontSize: 13, lineHeight: 18 },
+  heroActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  heroPlayBtn: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
+    backgroundColor: "#1677FF",
+    borderWidth: 3,
+    borderColor: "rgba(255,255,255,0.92)",
+  },
+  heroPlayText: { color: nothing.white, fontSize: 14, fontWeight: "700" },
+  heroListBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+
+  section: { gap: 12 },
+  sectionHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    color: "#101828",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  seeAll: {
+    color: "#526985",
+    fontSize: 12,
+    fontWeight: "700",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#EAF3FF",
+  },
+
+  continueList: { gap: 12, paddingRight: 4 },
+  continueCard: { width: 168, gap: 7 },
+  continueImageWrap: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: nothing.raised,
+    borderWidth: 1,
+    borderColor: "#D9E7F8",
+  },
+  continueImageFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: nothing.elevated,
+  },
+  continueImageFallbackText: {
+    color: "#526985",
+    fontSize: 28,
+    fontWeight: "800",
+  },
+  continueOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  continuePlayBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(22,119,255,0.92)",
+  },
+  continueProgress: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+  continueProgressFill: { height: "100%", backgroundColor: nothing.primary },
+  continueInfo: { gap: 2, paddingHorizontal: 2 },
+  continueTitle: {
+    color: "#101828",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+  continueMeta: { color: "#7185A5", fontSize: 11, fontWeight: "600" },
+
+  continueEmpty: { alignItems: "flex-start", paddingVertical: 16, gap: 6 },
+  continueEmptyTitle: { color: "#101828", fontSize: 15, fontWeight: "800" },
+  continueEmptyText: { color: "#7185A5", fontSize: 13, lineHeight: 18 },
+  browseBtn: {
+    marginTop: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: nothing.primary,
+  },
+  browseBtnText: { color: nothing.white, fontSize: 12, fontWeight: "700" },
+
+  trendingList: { gap: 12, paddingRight: 4 },
+  trendingCard: { width: 122, gap: 6 },
+  trendingCardImage: {
+    width: "100%",
+    aspectRatio: 3 / 4,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#EAF3FF",
+    borderWidth: 1,
+    borderColor: "#D9E7F8",
+  },
+  rankBadge: {
+    position: "absolute",
+    left: 8,
+    bottom: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: "rgba(11,15,20,0.85)",
+  },
+  rankBadgeText: {
+    color: nothing.primary,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    fontFamily: nothing.mono,
+  },
+  ratingBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: "rgba(7,20,38,0.84)",
+    borderWidth: 1,
+    borderColor: "rgba(22,119,255,0.35)",
+  },
+  ratingBadgeText: { color: nothing.accent, fontSize: 10, fontWeight: "800" },
+  trendingCardTitle: {
+    color: "#101828",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+  trendingCardMeta: { color: "#7185A5", fontSize: 10, fontWeight: "600" },
+
+  scrollPad: {
+    paddingHorizontal: 18,
+    paddingBottom: 128,
+    backgroundColor: "#F5F8FF",
+  },
+  flexPad: {
+    paddingHorizontal: 18,
+    paddingBottom: 128,
+    backgroundColor: "#F5F8FF",
+  },
+  pressed: nothing.pressed,
+});
