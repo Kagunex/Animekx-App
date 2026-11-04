@@ -34,7 +34,7 @@ import DownloadSimple from "lucide-react-native/icons/download";
 import CaretRight from "lucide-react-native/icons/chevron-right";
 import Sun from "lucide-react-native/icons/sun";
 import PictureInPicture from "lucide-react-native/icons/picture-in-picture-2";
-import { anirakuProxyUrl, getAnimeMetadata, getEpisodes, getServers, getStream, getPlaybackType, isAnirakuProxyUrl, nativePlaybackHeaders } from "@/lib/aniraku-api";
+import { anirakuProxyRequestHeaders, anirakuProxyUrl, getAnimeMetadata, getEpisodes, getServers, getStream, getPlaybackType, isAnirakuProxyUrl, nativePlaybackHeaders } from "@/lib/aniraku-api";
 import { getAnimeById, getKnownMalId, getMalIdByAnimeId } from "@/lib/anilist";
 import { enrichEpisodesWithTmdb } from "@/lib/tmdb-episodes";
 import {
@@ -51,7 +51,6 @@ import {
   isAutoQuality,
   isHentaiAnime,
   isOfflinePlaybackSource,
-  isProxySource,
   isResumablePosition,
   liveRenditionHeight,
   resolveHistoryResume,
@@ -66,7 +65,6 @@ import {
   proxySources,
   shouldPreferEmbed,
   shouldRefreshSameProvider,
-  shouldRetryProxiedSourceAfterDirect,
   shouldApplyInitialHistoryResume,
   shouldMountReplacementSource,
   shouldHoldRebufferWatermark,
@@ -351,6 +349,7 @@ export default function WatchScreen() {
   const streamCache = useRef(new Map<string, CachedStream>());
   const blockedProviders = useRef(new Set<string>());
   const refreshAttempted = useRef(new Set<string>());
+  const handledProviderFailureAttempt = useRef<string | null>(null);
   const forceRefresh = useRef(false);
   const sourceStarted = useRef(false);
   const sourceFirstFrame = useRef(false);
@@ -480,7 +479,7 @@ export default function WatchScreen() {
     const subtitleUrl = preferred.url.includes("/api/v1/proxy?") ? preferred.url : anirakuProxyUrl(preferred.url, nativePlaybackHeaders(playbackHeaders));
     let cancelled = false;
     const directHeaders = nativePlaybackHeaders(playbackHeaders);
-    fetch(subtitleUrl, directHeaders && !preferred.url.includes("/api/v1/proxy?") ? { headers: { ...directHeaders, Accept: "*/*" } } : undefined)
+    fetch(subtitleUrl, { headers: { ...anirakuProxyRequestHeaders(), Accept: "*/*" } })
       .then((r) => {
         if (!r.ok) throw new Error(`subtitle ${r.status}`);
         return r.text();
@@ -570,6 +569,13 @@ export default function WatchScreen() {
   const handleProviderBlocked = useCallback((reason: RetryReason = "player") => {
     const current = activeProviders[serverIndex];
     if (!current) return;
+    // Player callbacks, stream requests, and the startup watchdog can all
+    // report the same failure in one render turn. Process only the first
+    // report for this exact provider attempt; refreshNonce/serverIndex move
+    // the key forward when a retry or provider switch is actually started.
+    const attemptKey = `${current.id}:${language}:${episode}:${serverIndex}:${refreshNonce}`;
+    if (handledProviderFailureAttempt.current === attemptKey) return;
+    handledProviderFailureAttempt.current = attemptKey;
     // Retry honesty: the same provider is re-fetched ONCE with refresh:true;
     // afterwards we move to the next unblocked provider. The same dead URL
     // is never looped without the refresh flag (see shouldRefreshSameProvider).
@@ -618,7 +624,7 @@ export default function WatchScreen() {
         ? "This title plays via embedded player only. No embed source responded — try again shortly."
         : "We don't have a working stream for this episode right now.",
     );
-  }, [activeProviders, serverIndex, embedSource, stream, isHentai]);
+  }, [activeProviders, serverIndex, embedSource, stream, isHentai, language, episode, refreshNonce]);
 
   const handleProviderBlockedRef = useRef(handleProviderBlocked);
   useEffect(() => { handleProviderBlockedRef.current = handleProviderBlocked; }, [handleProviderBlocked]);
@@ -757,7 +763,7 @@ export default function WatchScreen() {
       } else if (initialDirect.length) {
         sourceMounted.current = true;
         setSource(mergeSubtitleTracks(initialDirect[0], activeProvider.subtitles));
-        setUseSourceProxy(false);
+        setUseSourceProxy(true);
         setSourceRevision((v) => v + 1);
       } else if (initialProxies.length) {
         sourceMounted.current = true;
@@ -800,7 +806,7 @@ export default function WatchScreen() {
         } else if (cachedDirect.length) {
           sourceMounted.current = true;
           setSource(mergeSubtitleTracks(cachedDirect[0], activeProvider.subtitles));
-          setUseSourceProxy(false);
+          setUseSourceProxy(true);
           setSourceRevision((v) => v + 1);
         } else if (cachedProxies.length) {
           sourceMounted.current = true;
@@ -848,7 +854,7 @@ export default function WatchScreen() {
           setPlaybackHeaders(response.headers ?? activeProvider.headers);
           if (refreshedDirect.length) {
             setSource(mergeSubtitleTracks(refreshedDirect[0], activeProvider.subtitles));
-            setUseSourceProxy(false);
+            setUseSourceProxy(true);
           } else {
             setSource(mergeSubtitleTracks(refreshedProxies[0], activeProvider.subtitles));
             setUseSourceProxy(true);
@@ -864,7 +870,7 @@ export default function WatchScreen() {
     return () => { cancelled = true; };
   }, [activeProvider, animeId, applySkipSegments, embedOnlyCatalog, episode, futureRelease, isHentai, language, refreshNonce]);
 
-  // ── Source loading with direct → proxy fallback ──
+  // ── Source loading watchdog ──
   // Offline saved copies never touch the stream path: no watchdog, no
   // proxy, no headers. Local files either load or surface a player error;
   // failing over to a network server would be the wrong next step.
@@ -873,18 +879,14 @@ export default function WatchScreen() {
     sourceStarted.current = false;
     sourceFirstFrame.current = false;
     const attempt = ++sourceAttempt.current;
-    // Video source: try direct, proxy already handled by useSourceProxy state
+    // Remote video is proxy-only on Android, so a startup timeout is a real
+    // proxy failure; retry the same provider once, then advance.
     const watchdog = setTimeout(() => {
       if (sourceAttempt.current !== attempt || sourceStarted.current) return;
-      if (shouldRetryProxiedSourceAfterDirect(useSourceProxy, sourceStarted.current)) {
-        setUseSourceProxy(true);
-        setSourceRevision((v) => v + 1);
-        return;
-      }
       handleProviderBlockedRef.current("startup");
     }, STARTUP_WATCHDOG_MS);
     return () => clearTimeout(watchdog);
-  }, [source?.url, sourceRevision, useSourceProxy]);
+  }, [source?.url, sourceRevision]);
 
   useEffect(() => {
     const sourceUrl = source?.url ?? null;
@@ -1093,22 +1095,23 @@ export default function WatchScreen() {
   }, [animeId, auth.user, currentTime, duration, episode, history.save, image, providerSync.connected.length, providerSync.pushProgress, source, title]);
 
   // ── Video source URL ──
-  // Backend stream URLs are already proxied (/api/v1/proxy?...). Those must
-  // play as-is — re-wrapping yields a proxy-of-proxy URL the backend rejects
-  // with 403 ("proxy target not allowed") → Exo BAD_HTTP_STATUS.
+  // Android's native networking can be rejected by provider CDNs. Route every
+  // remote source through Aniraku's media proxy; its own pre-proxied URLs must
+  // remain untouched to avoid a rejected proxy-of-proxy request.
   const videoSourceUri = useMemo(() => {
     if (!source) return undefined;
+    if (source.url.startsWith("file://") || source.url.startsWith("content://")) return source.url;
     if (isAnirakuProxyUrl(source.url)) return source.url;
     const directHeaders = nativePlaybackHeaders(playbackHeaders);
-    if (useSourceProxy) return anirakuProxyUrl(source.url, directHeaders);
-    return source.url;
-  }, [source?.url, useSourceProxy, playbackHeaders]);
+    return anirakuProxyUrl(source.url, directHeaders);
+  }, [source?.url, playbackHeaders]);
 
   const videoSourceHeaders = useMemo(() => {
-    if (useSourceProxy) return undefined;
-    if (source && isAnirakuProxyUrl(source.url)) return undefined;
-    return nativePlaybackHeaders(playbackHeaders);
-  }, [useSourceProxy, playbackHeaders, source?.url]);
+    if (!source || source.url.startsWith("file://") || source.url.startsWith("content://")) {
+      return nativePlaybackHeaders(playbackHeaders);
+    }
+    return anirakuProxyRequestHeaders();
+  }, [playbackHeaders, source?.url]);
 
   // ── Quality from the provider's Auto URL ──
   // Fetch the manifest the player is actually using and enumerate its real
@@ -1226,7 +1229,9 @@ export default function WatchScreen() {
       parsedVariantsRef.current = { key: masterPlaybackUri, variants };
     };
 
-    fetch(masterPlaybackUri, directHeaders && !proxied ? { headers: { ...directHeaders, Accept: "*/*" } } : undefined)
+    fetch(masterPlaybackUri, proxied
+      ? { headers: { ...anirakuProxyRequestHeaders(), Accept: "*/*" } }
+      : directHeaders ? { headers: { ...directHeaders, Accept: "*/*" } } : undefined)
       .then((response) => {
         if (!response.ok) throw new Error(`manifest ${response.status}`);
         return response.text();
@@ -1335,7 +1340,7 @@ export default function WatchScreen() {
     setAdaptiveBitrateCap(null);
     setEmbedSource(null);
     setSource(mergeSubtitleTracks(next, activeProvider?.subtitles));
-    setUseSourceProxy(isProxySource(next));
+    setUseSourceProxy(true);
     setSourceRevision((v) => v + 1);
     setPlaybackHeaders(stream?.headers ?? activeProvider?.headers);
     setRequestedQuality(isAutoQuality(next) ? "auto" : next.quality || "auto");
@@ -1390,7 +1395,9 @@ export default function WatchScreen() {
     try {
       const directHeaders = nativePlaybackHeaders(playbackHeadersMirrorRef.current);
       const proxied = useSourceProxy || isAnirakuProxyUrl(staleUrl) || isAnirakuProxyUrl(masterKey);
-      const response = await fetch(masterKey, directHeaders && !proxied ? { headers: { ...directHeaders, Accept: "*/*" } } : undefined);
+      const response = await fetch(masterKey, proxied
+        ? { headers: { ...anirakuProxyRequestHeaders(), Accept: "*/*" } }
+        : directHeaders ? { headers: { ...directHeaders, Accept: "*/*" } } : undefined);
       if (!response.ok) throw new Error(`manifest ${response.status}`);
       const text = await response.text();
       const variants = parseHlsMasterVariants(text, originalStreamUrl(masterKey));
@@ -1406,6 +1413,7 @@ export default function WatchScreen() {
         parsedVariantsRef.current = { key: masterKey, variants };
       }
       sourceMounted.current = true;
+      setUseSourceProxy(true);
       setSource({ ...stale, url: proxied ? anirakuProxyUrl(targetCdn, directHeaders) : targetCdn });
       setSourceRevision((value) => value + 1);
     } catch {
@@ -2251,14 +2259,6 @@ export default function WatchScreen() {
           if (shouldRefreshMasterOnVariantError({ errorDetail: String(detail), variantUrl: mountedUrl, refreshedAlready: variantTokenRefreshAttempted.current === mountedUrl })) {
             variantTokenRefreshAttempted.current = mountedUrl;
             void refreshVariantFromMaster();
-            return;
-          }
-          if (!useSourceProxy) {
-            // Retry this source through the proxy. Keep it in loading state so
-            // a direct-source error cannot trigger provider failover as well.
-            setPlayerStatus("loading");
-            setUseSourceProxy(true);
-            setSourceRevision((v) => v + 1);
             return;
           }
           setPlayerStatus("error");

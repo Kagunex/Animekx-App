@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AniListRateLimitError, AniListUnavailableError, chunkIds, getAnimeByIds, getAnimeById, getAnimePage, getHomeAnime, getHomeRailAnime, resetAniListRequestStateForTests } from "../lib/anilist";
+import { AniListRateLimitError, AniListUnavailableError, chunkIds, currentAnimeSeason, getAnimeByIds, getAnimeById, getAnimePage, getHomeAnime, getHomeRailAnime, resetAniListRequestStateForTests } from "../lib/anilist";
 import { APP_CONFIG } from "../lib/app-config";
 
 const originalFetch = global.fetch;
@@ -45,7 +45,7 @@ describe("AniList query construction", () => {
     expect(body.query).toContain("trending:");
     expect(body.query).toContain("popular:");
     expect(body.query).toContain("upcoming:");
-    expect(body.variables).toEqual({});
+    expect(body.variables).toEqual(currentAnimeSeason());
     expect(home.upcoming).toMatchObject([{ id: 3, status: "NOT_YET_RELEASED" }]);
   });
 

@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { anirakuProxyUrl, getPlaybackType, hasExpiredEmbeddedToken, isAnirakuProxyUrl, nativePlaybackHeaders, normalizeStreamResponse, playableSources } from "../lib/aniraku-api";
+import { anirakuProxyRequestHeaders, anirakuProxyUrl, getPlaybackType, hasExpiredEmbeddedToken, isAnirakuProxyUrl, nativePlaybackHeaders, normalizeStreamResponse, playableSources } from "../lib/aniraku-api";
 import { getKnownMalId } from "../lib/anilist";
 import { directSources, embedSources, episodePageCount, episodePageFor, episodePageSlice, FUTURE_RELEASE_MESSAGE, hasConfirmedPlaybackStart, isConfirmedFutureRelease, isHentaiAnime, isProxySource, nativeSources, normalizeAniSkipSegments, proxySources, shouldApplyInitialHistoryResume, shouldHoldRebufferWatermark, shouldMountReplacementSource, shouldPreferEmbed, shouldRetryProxiedSourceAfterDirect } from "../lib/watch-engine";
 
 describe("Aniraku native playback coordination", () => {
+  it("uses the browser identity required by the live Aniraku API and media proxy", () => {
+    expect(anirakuProxyRequestHeaders()).toEqual({
+      "User-Agent": expect.stringContaining("Chrome/131.0.0.0"),
+      Referer: "https://aniraku.tech/",
+    });
+  });
+
   it("keeps only Android-safe transport headers for direct media", () => {
     // ExoPlayer forwards User-Agent when present — stripping it caused 403s
     // on UA-locked CDNs. Only transport-managed headers are blocked now.
@@ -15,6 +22,14 @@ describe("Aniraku native playback coordination", () => {
     expect(proxied).toContain("https://api.aniraku.tech/api/v1/proxy?");
     expect(decodeURIComponent(proxied)).toContain("url=https://cdn.example/episode.m3u8");
     expect(decodeURIComponent(proxied)).toContain('headers={"Referer":"https://provider.example/","User-Agent":"browser"}');
+  });
+
+  it("adds a fallback browser UA to upstream proxy headers without replacing provider referer", () => {
+    const proxied = new URL(anirakuProxyUrl("https://cdn.example/episode.m3u8", { Referer: "https://provider.example/" }));
+    expect(JSON.parse(proxied.searchParams.get("headers") || "{}")).toMatchObject({
+      Referer: "https://provider.example/",
+      "User-Agent": expect.stringContaining("Chrome/131.0.0.0"),
+    });
   });
 
   it("never double-wraps backend pre-proxied stream URLs (403 BAD_HTTP_STATUS fix)", () => {

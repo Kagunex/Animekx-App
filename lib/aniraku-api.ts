@@ -9,7 +9,10 @@ async function apiRequest<T>(path: string, init?: RequestInit, timeoutMs: number
     response = await fetch(`${APP_CONFIG.apiBaseUrl}${path}`, {
       ...init,
       signal: init?.signal ?? controller.signal,
-      headers: { Accept: "application/json", ...(init?.headers ?? {}) },
+      // The current Aniraku API/proxy edge rejects native requests without a
+      // browser identity. Explicit request headers still take precedence for
+      // endpoints that require a provider or Android-specific identity.
+      headers: { Accept: "application/json", ...anirakuProxyRequestHeaders(), ...(init?.headers ?? {}) },
     });
   } catch (cause) {
     const timedOut = cause instanceof Error && cause.name === "AbortError";
@@ -32,6 +35,15 @@ async function apiRequest<T>(path: string, init?: RequestInit, timeoutMs: number
 
 export const CHROME_ANDROID_UA =
   "Mozilla/5.0 (Linux; Android 15; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+
+export const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+export const ANIRAKU_SITE_REFERER = "https://aniraku.tech/";
+
+/** Identity required by api.aniraku.tech for API and proxied media requests. */
+export function anirakuProxyRequestHeaders(): Record<string, string> {
+  return { "User-Agent": BROWSER_UA, Referer: ANIRAKU_SITE_REFERER };
+}
 
 export function getPlaybackType(source: StreamSource): "hls" | "dash" | "native" | "embed" {
   const raw = `${source.type ?? ""} ${source.mime ?? ""}`.toLowerCase();
@@ -81,8 +93,16 @@ export function anirakuProxyUrl(url: string, headers?: Record<string, string>) {
   // {"error":"proxy target not allowed"} → HTTP 403 → ExoPlayer
   // ERROR_CODE_IO_BAD_HTTP_STATUS. Play those URLs as-is.
   if (isAnirakuProxyUrl(url)) return url;
-  const parameters = new URLSearchParams({ url, rn: `${Date.now()}-${Math.random().toString(36).slice(2)}` });
-  if (headers && Object.keys(headers).length) parameters.set("headers", JSON.stringify(headers));
+  const parameters = new URLSearchParams({ url });
+  if (headers && Object.keys(headers).length) {
+    // Preserve provider-specific Referer/Origin values. Only supply a browser
+    // UA when the provider did not return one for its upstream request.
+    const upstream = { ...headers };
+    if (!Object.keys(upstream).some((key) => key.toLowerCase() === "user-agent")) {
+      upstream["User-Agent"] = BROWSER_UA;
+    }
+    parameters.set("headers", JSON.stringify(upstream));
+  }
   return `${APP_CONFIG.apiBaseUrl}/api/v1/proxy?${parameters.toString()}`;
 }
 
