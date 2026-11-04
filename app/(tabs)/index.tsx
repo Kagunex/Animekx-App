@@ -594,7 +594,9 @@ export default function HomeScreen() {
                     onPress={() => {
                       hapticLight();
                       prefetch(hero.id);
-                      router.push({ pathname: "/watch/[id]", params: { id: String(hero.id), episode: "1", title: animeTitle(hero), image: hero.coverImage?.extraLarge || hero.coverImage?.large || "" } } as never);
+                      // Let the anime detail screen resolve the latest
+                      // available/resume episode before entering the player.
+                      router.push(`/anime/${hero.id}` as never);
                     }}
                   >
                     <AppIcon name="play" size={19} color="#FFFFFF" />

@@ -455,16 +455,16 @@ export async function getAnimePage(
 
 export async function getHomeAnime(isAdult?: boolean | null) {
   const data = await request<{
-    trending: AnimePage;
-    popular: AnimePage;
-    seasonal: AnimePage;
-    upcoming: AnimePage;
+    trending?: AnimePage;
+    popular?: AnimePage;
+    seasonal?: AnimePage;
+    upcoming?: AnimePage;
   }>(homeQuery, { isAdult, ...currentAnimeSeason() });
   return {
-    trending: data.trending.media,
-    popular: data.popular.media,
-    seasonal: data.seasonal.media,
-    upcoming: data.upcoming.media,
+    trending: data.trending?.media ?? [],
+    popular: data.popular?.media ?? [],
+    seasonal: data.seasonal?.media ?? [],
+    upcoming: data.upcoming?.media ?? [],
   };
 }
 

@@ -356,7 +356,6 @@ export default function WatchScreen() {
   const sourceFirstFrame = useRef(false);
   const sourceMounted = useRef(false);
   const sourceAttempt = useRef(0);
-  const sourceFailureHandled = useRef<string | null>(null);
   const lastHistorySync = useRef(0);
   const lastProviderSync = useRef(0);
   const skipSegmentsRef = useRef(skipSegments);
@@ -561,7 +560,6 @@ export default function WatchScreen() {
     sourceStarted.current = false;
     sourceFirstFrame.current = false;
     sourceMounted.current = false;
-    sourceFailureHandled.current = null;
     lastStablePlaybackTime.current = 0;
     rebufferSeen.current = false;
     intentionalSeekUntil.current = 0;
@@ -581,7 +579,6 @@ export default function WatchScreen() {
       sourceStarted.current = false;
       sourceFirstFrame.current = false;
       sourceMounted.current = false;
-      sourceFailureHandled.current = null;
       setLoadingStream(true);
       setRefreshNonce((value) => value + 1);
       return;
@@ -593,7 +590,6 @@ export default function WatchScreen() {
       sourceStarted.current = false;
       sourceFirstFrame.current = false;
       sourceMounted.current = false;
-      sourceFailureHandled.current = null;
       setLoadingStream(true);
       setServerIndex(next);
       return;
@@ -609,7 +605,6 @@ export default function WatchScreen() {
         videoRef.current?.pause();
         sourceStarted.current = false;
         sourceFirstFrame.current = false;
-        sourceFailureHandled.current = null;
         setSource(null);
         setEmbedSource(fallbackEmbed);
         setLoadingStream(false);
@@ -875,7 +870,6 @@ export default function WatchScreen() {
   // failing over to a network server would be the wrong next step.
   useEffect(() => {
     if (!source || isOfflinePlaybackSource(source)) return;
-    sourceFailureHandled.current = null;
     sourceStarted.current = false;
     sourceFirstFrame.current = false;
     const attempt = ++sourceAttempt.current;
@@ -926,21 +920,6 @@ export default function WatchScreen() {
       setResumePosition(null);
     }
   }, [currentTime, isPlaying, playerStatus]);
-
-  useEffect(() => {
-    if (playerStatus !== "error" || !source?.url || sourceFailureHandled.current === source.url) return;
-    // Offline files stay offline: surface the player error, never proxy or
-    // fail over to a network server.
-    if (isOfflinePlaybackSource(source)) {
-      sourceFailureHandled.current = source.url;
-      setLoadingStream(false);
-      setError("The saved copy could not play. Remove it and download again.");
-      return;
-    }
-    if (!useSourceProxy) { setUseSourceProxy(true); setSourceRevision((v) => v + 1); return; }
-    sourceFailureHandled.current = source.url;
-    handleProviderBlockedRef.current("player");
-  }, [source?.url, playerStatus, useSourceProxy]);
 
   // ── Skip segments (AniSkip) ──
   useEffect(() => {
@@ -1301,7 +1280,6 @@ export default function WatchScreen() {
     sourceFirstFrame.current = false;
     sourceMounted.current = false;
     markedComplete.current = false;
-    sourceFailureHandled.current = null;
     activeProviderId.current = null;
     setStream(null);
     setSource(null);
@@ -1327,7 +1305,6 @@ export default function WatchScreen() {
     sourceFirstFrame.current = false;
     sourceMounted.current = false;
     markedComplete.current = false;
-    sourceFailureHandled.current = null;
     variantTokenRefreshAttempted.current = null;
     videoRef.current?.pause();
     setSource(null);
@@ -1429,7 +1406,6 @@ export default function WatchScreen() {
         parsedVariantsRef.current = { key: masterKey, variants };
       }
       sourceMounted.current = true;
-      sourceFailureHandled.current = null;
       setSource({ ...stale, url: proxied ? anirakuProxyUrl(targetCdn, directHeaders) : targetCdn });
       setSourceRevision((value) => value + 1);
     } catch {
@@ -2262,7 +2238,32 @@ export default function WatchScreen() {
         onVideoTracks={handleVideoTracks}
         onBandwidthUpdate={handleBandwidthUpdate}
         onPictureInPictureStatusChanged={onPipStatusChanged}
-        onError={(event: any) => { const detail = event?.error?.errorString || event?.error?.errorCode || "Unknown player error"; const mountedUrl = source?.url ?? null; if (shouldRefreshMasterOnVariantError({ errorDetail: String(detail), variantUrl: mountedUrl, refreshedAlready: variantTokenRefreshAttempted.current === mountedUrl })) { variantTokenRefreshAttempted.current = mountedUrl; void refreshVariantFromMaster(); return; } setLastPlayerError(String(detail)); setPlayerStatus("error"); if (!useSourceProxy) { setUseSourceProxy(true); setSourceRevision((v) => v + 1); return; } handleProviderBlockedRef.current("player"); }}
+        onError={(event: any) => {
+          const detail = event?.error?.errorString || event?.error?.errorCode || "Unknown player error";
+          const mountedUrl = source?.url ?? null;
+          setLastPlayerError(String(detail));
+          if (source && isOfflinePlaybackSource(source)) {
+            setPlayerStatus("error");
+            setLoadingStream(false);
+            setError("The saved copy could not play. Remove it and download again.");
+            return;
+          }
+          if (shouldRefreshMasterOnVariantError({ errorDetail: String(detail), variantUrl: mountedUrl, refreshedAlready: variantTokenRefreshAttempted.current === mountedUrl })) {
+            variantTokenRefreshAttempted.current = mountedUrl;
+            void refreshVariantFromMaster();
+            return;
+          }
+          if (!useSourceProxy) {
+            // Retry this source through the proxy. Keep it in loading state so
+            // a direct-source error cannot trigger provider failover as well.
+            setPlayerStatus("loading");
+            setUseSourceProxy(true);
+            setSourceRevision((v) => v + 1);
+            return;
+          }
+          setPlayerStatus("error");
+          handleProviderBlockedRef.current("player");
+        }}
         onEnd={() => { const reachedEnd = duration > 30 && currentTime >= Math.max(1, duration - 2); if (!sourceStarted.current || !reachedEnd) return; if (auth.user) { history.save.mutate({ animeId, animeTitle: title, animeImage: image || null, episode, episodeTitle: selectedEpisode?.title || null, episodeThumbnail: selectedEpisode?.thumbnail || null, progress: duration || currentTime, duration: duration || currentTime }); if (providerSync.connected.length) providerSync.pushProgress.mutate({ animeId, episode, progress: Math.floor(duration || currentTime), status: "completed" }); } showUpNext(); }}
       /> : (embedSource && !error) ? null : <View style={styles.videoPlaceholder}>
         {loadingServers ? <ProviderDiscoveryLoader attempt={serverAttempt} /> : loadingStream ? <View style={styles.thumbnailLoading}>
