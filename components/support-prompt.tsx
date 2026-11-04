@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as WebBrowser from "expo-web-browser";
 import { usePathname } from "expo-router";
 
-import { AnirakuMark, DotLabel, nothing, Signal } from "@/components/nothing-ui";
+import { AnirakuMark, DotLabel, GlassSurface, nothing, Signal } from "@/components/nothing-ui";
 import { PATREON_URL, SUPPORT_PROMPT_DISMISS_KEY, isSupportPromptExcluded, shouldShowSupportPrompt, supportDismissedUntil } from "@/lib/support";
 
 const TICK_MS = 15_000;
@@ -60,25 +60,26 @@ export function SupportPrompt() {
   };
 
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={() => { void dismiss(); }}>
-    <View style={styles.backdrop}><View style={styles.sheet} accessibilityViewIsModal>
+    <View style={styles.backdrop}><GlassSurface style={styles.sheet} intensity={58}><View accessibilityViewIsModal style={styles.sheetContent}>
       <View style={styles.top}><DotLabel tone="signal">Animekz / COMMUNITY SUPPORT</DotLabel><Signal label="OPTIONAL" tone="live" /></View>
       <View style={styles.mark}><AnirakuMark size={38} inverted /></View>
       <Text style={styles.title}>Keep Animekz moving.</Text>
       <Text style={styles.copy}>If Animekz has helped you find something to watch, voluntary support helps fund hosting, releases, and open-source development.</Text>
       <Pressable accessibilityRole="button" onPress={() => void openPatreon()} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}><Text style={styles.primaryText}>SUPPORT ON PATREON</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => { void dismiss(); }} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Text style={styles.secondaryText}>NOT NOW · ASK AGAIN IN 7 DAYS</Text></Pressable>
-    </View></View>
+    </View></GlassSurface></View>
   </Modal>;
 }
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, padding: 20, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.76)" },
-  sheet: { gap: 14, padding: 18, borderRadius: 6, borderWidth: 1, borderColor: nothing.line, borderBottomWidth: 3, borderBottomColor: nothing.red, backgroundColor: nothing.black },
+  sheet: { borderRadius: 24, borderWidth: 1.5, borderColor: "rgba(38,55,70,0.26)", borderBottomWidth: 3, borderBottomColor: nothing.red },
+  sheetContent: { gap: 14, padding: 18 },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   mark: { width: 52, height: 52, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: nothing.line, backgroundColor: nothing.raised },
   title: { color: nothing.white, fontSize: 27, fontWeight: "900", letterSpacing: -0.8, lineHeight: 31 },
   copy: { color: nothing.muted, fontSize: 13, lineHeight: 19 },
-  primary: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 4, backgroundColor: nothing.white },
+  primary: { minHeight: 50, alignItems: "center", justifyContent: "center", borderRadius: 4, backgroundColor: "#4BA3E8" },
   primaryText: { color: nothing.black, fontSize: 10, fontWeight: "800", letterSpacing: 0.45 },
   secondary: { minHeight: 42, alignItems: "center", justifyContent: "center" },
   secondaryText: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.45 },

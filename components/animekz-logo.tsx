@@ -43,9 +43,9 @@ const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center" },
   wordmark: { alignItems: "center", gap: 3, marginTop: 10 },
   name: { color: "#FFFFFF", fontSize: 24, fontWeight: "900", letterSpacing: 3 },
-  nameDark: { color: "#142B4B" },
+  nameDark: { color: "#172B3A" },
   tagline: {
-    color: "#73B8FF",
+    color: "#8CCFFF",
     fontSize: 12,
     fontWeight: "600",
     letterSpacing: 0.3,

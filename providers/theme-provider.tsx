@@ -19,14 +19,14 @@ type ThemeContextType = {
 const STORAGE_KEY = "aniraku.theme.v1";
 
 const ThemeContext = createContext<ThemeContextType>({
-  mode: "dark",
-  isDark: true,
+  mode: "light",
+  isDark: false,
   setMode: () => {},
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
   const systemScheme = useColorScheme();
-  const [mode, setModeState] = useState<ThemeMode>("dark");
+  const [mode, setModeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -58,28 +58,32 @@ export function useTheme() {
 
 /** Light blue palette */
 export const lightColors = {
-  background: "#F5F8FF",
+  primary: "#8CCFFF",
+  secondary: "#FFFFFF",
+  background: "#F5FAFF",
   surface: "#FFFFFF",
-  raised: "#EAF3FF",
-  line: "#C9DCF5",
-  text: "#142B4B",
-  muted: "#526985",
-  dim: "#7890AC",
-  accent: "#1677FF",
+  raised: "#EAF5FF",
+  line: "#263746",
+  text: "#172B3A",
+  muted: "#71869A",
+  dim: "#8CA0B1",
+  accent: "#4BA3E8",
   card: "#FFFFFF",
-  cardBorder: "#D9E7F8",
+  cardBorder: "#D5E7F5",
 };
 
 /** Deep navy palette */
 export const darkColors = {
-  background: "#071426",
-  surface: "#10223B",
-  raised: "#172D4B",
-  line: "#294361",
+  primary: "#8CCFFF",
+  secondary: "#FFFFFF",
+  background: "#102334",
+  surface: "#18344A",
+  raised: "#21435D",
+  line: "#456176",
   text: "#F7FAFF",
-  muted: "#A8BBD4",
-  dim: "#7890AC",
-  accent: "#1677FF",
-  card: "#141A22",
-  cardBorder: "#294361",
+  muted: "#B2C5D4",
+  dim: "#91A8BA",
+  accent: "#8CCFFF",
+  card: "#18344A",
+  cardBorder: "#456176",
 };

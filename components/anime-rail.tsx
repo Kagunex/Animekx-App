@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: -0.4,
   },
-  titleLight: { color: "#101828" },
+  titleLight: { color: "#172B3A" },
   browse: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: nothing.line,
   },
-  browseTextLight: { color: "#1677FF" },
+  browseTextLight: { color: "#4BA3E8" },
   browseText: {
     color: nothing.muted,
     fontWeight: "600",

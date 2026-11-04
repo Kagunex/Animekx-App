@@ -112,7 +112,7 @@ export default function LibraryScreen() {
             onPress={() => router.back()}
             style={styles.close}
           >
-            <AppIcon name="arrow-left" size={21} color={"#101828"} />
+            <AppIcon name="arrow-left" size={21} color={"#172B3A"} />
           </Pressable>
           <View style={styles.titleBlock}>
             <DotLabel>ALERTS / PREVIEW</DotLabel>
@@ -239,7 +239,7 @@ export default function LibraryScreen() {
                   % WATCHED · RESUME
                 </Text>
               </View>
-              <AppIcon name="chevron-right" size={20} color={"#526985"} />
+              <AppIcon name="chevron-right" size={20} color={"#71869A"} />
             </Pressable>
           ) : tab === "bookmarks" ? (
             <Pressable
@@ -261,7 +261,7 @@ export default function LibraryScreen() {
                 </Text>
                 <Text style={styles.rowMeta}>SAVED TO LIBRARY</Text>
               </View>
-              <AppIcon name="chevron-right" size={20} color={"#526985"} />
+              <AppIcon name="chevron-right" size={20} color={"#71869A"} />
             </Pressable>
           ) : (
             <Pressable
@@ -294,7 +294,7 @@ export default function LibraryScreen() {
           onPress={() => router.back()}
           style={styles.close}
         >
-          <AppIcon name="arrow-left" size={21} color={"#101828"} />
+          <AppIcon name="arrow-left" size={21} color={"#172B3A"} />
         </Pressable>
         <View style={styles.titleBlock}>
           <DotLabel>LIBRARY / VERIFIED SYNC</DotLabel>
@@ -389,13 +389,13 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   redirectTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: -0.6,
   },
   redirectCopy: {
-    color: "#526985",
+    color: "#71869A",
     fontSize: 13,
     lineHeight: 19,
     maxWidth: 290,
@@ -412,19 +412,19 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
-    backgroundColor: "#EAF3FF",
+    borderColor: "#D5E7F5",
+    backgroundColor: "#EAF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
   titleBlock: { flex: 1, gap: 2 },
   title: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: -0.65,
   },
-  subtitle: { color: "#7185A5", fontSize: 13, marginTop: 3 },
+  subtitle: { color: "#71869A", fontSize: 13, marginTop: 3 },
   guestAlert: {
     flex: 1,
     paddingHorizontal: 24,
@@ -433,14 +433,14 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   guestAlertTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 31,
     fontWeight: "900",
     letterSpacing: -0.9,
     lineHeight: 36,
   },
   guestAlertCopy: {
-    color: "#526985",
+    color: "#71869A",
     fontSize: 13,
     lineHeight: 20,
     maxWidth: 330,
@@ -452,18 +452,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   guestAlertCardCopy: { flex: 1, gap: 5 },
   guestAlertCardTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 10,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
-  guestAlertCardText: { color: "#526985", fontSize: 12, lineHeight: 17 },
+  guestAlertCardText: { color: "#71869A", fontSize: 12, lineHeight: 17 },
   guestAlertFoot: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 11,
     lineHeight: 16,
     textAlign: "center",
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     gap: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   tab: {
     minHeight: 36,
@@ -483,9 +483,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
     marginBottom: -1,
   },
-  tabActive: { borderBottomColor: "#1677FF" },
-  tabText: { color: "#526985", fontWeight: "800", fontSize: 12 },
-  tabTextActive: { color: "#101828" },
+  tabActive: { borderBottomColor: "#4BA3E8" },
+  tabText: { color: "#71869A", fontWeight: "800", fontSize: 12 },
+  tabTextActive: { color: "#172B3A" },
   sectionHead: {
     minHeight: 74,
     marginHorizontal: 16,
@@ -494,14 +494,14 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    color: "#101828",
+    color: "#172B3A",
     marginTop: 4,
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: -0.4,
   },
   count: {
-    color: "#7185A5",
+    color: "#71869A",
     fontFamily: nothing.mono,
     fontWeight: "900",
     fontSize: 12,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     gap: 0,
     borderTopWidth: 1,
-    borderTopColor: "#D9E7F8",
+    borderTopColor: "#D5E7F5",
   },
   row: {
     minHeight: 96,
@@ -521,23 +521,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 11,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   thumb: {
     width: 64,
     height: 88,
     borderRadius: 13,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   rowBody: { flex: 1, justifyContent: "center", gap: 5 },
   rowTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "900",
     fontSize: 14,
     lineHeight: 18,
   },
   rowMeta: {
-    color: "#7185A5",
+    color: "#71869A",
     fontFamily: nothing.mono,
     fontSize: 10,
     fontWeight: "800",
@@ -547,22 +547,22 @@ const styles = StyleSheet.create({
     height: 3,
     overflow: "hidden",
     borderRadius: 2,
-    backgroundColor: "#D9E7F8",
+    backgroundColor: "#D5E7F5",
   },
-  progress: { height: "100%", backgroundColor: "#1677FF" },
+  progress: { height: "100%", backgroundColor: "#4BA3E8" },
   alert: {
     minHeight: 72,
     paddingVertical: 12,
     gap: 6,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
-  alertText: { color: "#101828", fontSize: 13, lineHeight: 19 },
+  alertText: { color: "#172B3A", fontSize: 13, lineHeight: 19 },
   unread: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#1677FF",
+    backgroundColor: "#4BA3E8",
     position: "absolute",
     top: 13,
     right: 13,
@@ -581,18 +581,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   alertActionActive: {
-    borderColor: "#1677FF",
+    borderColor: "#4BA3E8",
     backgroundColor: "rgba(255,77,77,0.09)",
   },
   alertActionDisabled: { opacity: 0.35 },
   alertActionText: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "900",
     fontSize: 10,
     letterSpacing: 0.25,
   },
-  alertActionTextActive: { color: "#1677FF" },
+  alertActionTextActive: { color: "#4BA3E8" },
 });

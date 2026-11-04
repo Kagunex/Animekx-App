@@ -158,8 +158,8 @@ export default function SettingsScreen() {
       setSyncMessage(null);
       const url = await sync.authorize.mutateAsync(provider);
       await WebBrowser.openBrowserAsync(url, {
-        toolbarColor: nothing.black,
-        controlsColor: "#101828",
+        toolbarColor: "#F5FAFF",
+        controlsColor: "#172B3A",
         showTitle: false,
       });
       setSyncMessage(
@@ -282,7 +282,7 @@ export default function SettingsScreen() {
           onPress={() => router.back()}
           style={styles.close}
         >
-          <AppIcon name="arrow-left" size={21} color={"#101828"} />
+          <AppIcon name="arrow-left" size={21} color={"#172B3A"} />
         </Pressable>
         <View style={styles.titleBlock}>
           <DotLabel>ACCOUNT / CONTROL ROOM</DotLabel>
@@ -295,7 +295,7 @@ export default function SettingsScreen() {
       {/* ── Session ── */}
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="account" size={18} color={"#7185A5"} />
+          <AppIcon name="account" size={18} color={"#71869A"} />
         </View>
         <View style={styles.rowBody}>
           <Text style={styles.rowLabel}>{auth.user.email}</Text>
@@ -331,7 +331,7 @@ export default function SettingsScreen() {
       {availableRelease ? (
         <View style={styles.row}>
           <View style={styles.rowIcon}>
-            <AppIcon name="download" size={18} color={"#1677FF"} />
+            <AppIcon name="download" size={18} color={"#4BA3E8"} />
           </View>
           <Pressable
             accessibilityRole="button"
@@ -339,7 +339,7 @@ export default function SettingsScreen() {
             onPress={() => void installAvailableRelease()}
             style={styles.rowBody}
           >
-            <Text style={[styles.rowLabel, { color: "#1677FF" }]}>
+            <Text style={[styles.rowLabel, { color: "#4BA3E8" }]}>
               {installingUpdate
                 ? "PREPARING INSTALL"
                 : `INSTALL V${availableRelease.version}`}
@@ -390,13 +390,13 @@ export default function SettingsScreen() {
         style={styles.row}
       >
         <View style={styles.rowIcon}>
-          <AppIcon name="globe" size={18} color={"#7185A5"} />
+          <AppIcon name="globe" size={18} color={"#71869A"} />
         </View>
         <View style={styles.rowBody}>
           <Text style={styles.rowLabel}>Language</Text>
         </View>
         <Text style={styles.rowMeta}>English</Text>
-        <AppIcon name="chevron-right" size={18} color={"#7185A5"} />
+        <AppIcon name="chevron-right" size={18} color={"#71869A"} />
       </Pressable>
 
       {/* ── Content ── */}
@@ -412,7 +412,7 @@ export default function SettingsScreen() {
           <AppIcon
             name="eye"
             size={18}
-            color={nsfw.enabled ? "#1677FF" : "#7185A5"}
+            color={nsfw.enabled ? "#4BA3E8" : "#71869A"}
           />
         </View>
         <View style={styles.rowBody}>
@@ -445,7 +445,7 @@ export default function SettingsScreen() {
           <AppIcon
             name="bell"
             size={18}
-            color={notifPrefs.newEpisodes ? "#1677FF" : "#7185A5"}
+            color={notifPrefs.newEpisodes ? "#4BA3E8" : "#71869A"}
           />
         </View>
         <View style={styles.rowBody}>
@@ -467,7 +467,7 @@ export default function SettingsScreen() {
           <AppIcon
             name="reply"
             size={18}
-            color={notifPrefs.commentReplies ? "#1677FF" : "#7185A5"}
+            color={notifPrefs.commentReplies ? "#4BA3E8" : "#71869A"}
           />
         </View>
         <View style={styles.rowBody}>
@@ -491,7 +491,7 @@ export default function SettingsScreen() {
           <AppIcon
             name="information"
             size={18}
-            color={notifPrefs.systemAnnouncements ? "#1677FF" : "#7185A5"}
+            color={notifPrefs.systemAnnouncements ? "#4BA3E8" : "#71869A"}
           />
         </View>
         <View style={styles.rowBody}>
@@ -521,7 +521,7 @@ export default function SettingsScreen() {
             }}
             style={styles.refresh}
           >
-            <AppIcon name="refresh" size={14} color={"#101828"} />
+            <AppIcon name="refresh" size={14} color={"#172B3A"} />
             <Text style={styles.refreshText}>{t("settings.refresh")}</Text>
           </Pressable>
         </View>
@@ -660,7 +660,7 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="history" size={18} color={"#7185A5"} />
+          <AppIcon name="history" size={18} color={"#71869A"} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -675,7 +675,7 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="bookmark-remove-outline" size={18} color={"#7185A5"} />
+          <AppIcon name="bookmark-remove-outline" size={18} color={"#71869A"} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -698,12 +698,12 @@ export default function SettingsScreen() {
         style={styles.row}
       >
         <View style={styles.rowIcon}>
-          <AppIcon name="download" size={18} color="#7185A5" />
+          <AppIcon name="download" size={18} color="#71869A" />
         </View>
         <View style={styles.rowBody}>
           <Text style={styles.rowLabel}>Data Usage</Text>
         </View>
-        <AppIcon name="chevron-right" size={18} color="#7185A5" />
+        <AppIcon name="chevron-right" size={18} color="#71869A" />
       </Pressable>
 
       {/* ── Support / Legal ── */}
@@ -712,7 +712,7 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="heart-outline" size={18} color={"#7185A5"} />
+          <AppIcon name="heart-outline" size={18} color={"#71869A"} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -725,7 +725,7 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="shield" size={18} color={"#7185A5"} />
+          <AppIcon name="shield" size={18} color={"#71869A"} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -737,11 +737,11 @@ export default function SettingsScreen() {
             Account controls and privacy details
           </Text>
         </Pressable>
-        <AppIcon name="chevron-right" size={18} color="#7185A5" />
+        <AppIcon name="chevron-right" size={18} color="#71869A" />
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="file-document-outline" size={18} color={"#7185A5"} />
+          <AppIcon name="file-document-outline" size={18} color={"#71869A"} />
         </View>
         <Pressable
           accessibilityRole="button"
@@ -761,14 +761,14 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.row}>
         <View style={styles.rowIcon}>
-          <AppIcon name="delete-forever-outline" size={18} color={"#1677FF"} />
+          <AppIcon name="delete-forever-outline" size={18} color={"#4BA3E8"} />
         </View>
         <Pressable
           accessibilityRole="button"
           onPress={deleteAccount}
           style={styles.rowBody}
         >
-          <Text style={[styles.rowLabel, { color: "#1677FF" }]}>
+          <Text style={[styles.rowLabel, { color: "#4BA3E8" }]}>
             Delete account
           </Text>
           <Text style={styles.rowMeta}>
@@ -787,7 +787,7 @@ export default function SettingsScreen() {
         style={styles.row}
       >
         <View style={styles.rowIcon}>
-          <AppIcon name="information" size={18} color="#7185A5" />
+          <AppIcon name="information" size={18} color="#71869A" />
         </View>
         <View style={styles.rowBody}>
           <Text style={styles.rowLabel}>About AnimeKz</Text>
@@ -795,7 +795,7 @@ export default function SettingsScreen() {
             Version, build, and app information
           </Text>
         </View>
-        <AppIcon name="chevron-right" size={18} color="#7185A5" />
+        <AppIcon name="chevron-right" size={18} color="#71869A" />
       </Pressable>
       <Text style={styles.footnote}>
         Deletion removes your synchronized data before removing your
@@ -836,13 +836,13 @@ const styles = StyleSheet.create({
     gap: 9,
   },
   redirectTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: -0.6,
   },
   redirectCopy: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 13,
     lineHeight: 19,
     maxWidth: 290,
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   titleBlock: { flex: 1, gap: 2 },
-  subtitle: { color: "#7185A5", fontSize: 13, marginTop: 2 },
+  subtitle: { color: "#71869A", fontSize: 13, marginTop: 2 },
   appInfoCard: {
     minHeight: 88,
     flexDirection: "row",
@@ -866,9 +866,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
-    shadowColor: "#142B4B",
+    shadowColor: "#172B3A",
     shadowOpacity: 0.05,
     shadowRadius: 12,
     elevation: 2,
@@ -887,7 +887,7 @@ const styles = StyleSheet.create({
   },
   logoutText: { color: "#D92D20", fontSize: 14, fontWeight: "800" },
   title: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 25,
     fontWeight: "900",
     letterSpacing: -0.65,
@@ -902,14 +902,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   appearanceOptionActive: {
-    backgroundColor: "rgba(22,119,255,0.18)",
+    backgroundColor: "rgba(75,163,232,0.18)",
     borderColor: nothing.primary,
   },
-  appearanceText: { color: "#7185A5", fontSize: 12, fontWeight: "700" },
-  appearanceTextActive: { color: "#1677FF" },
+  appearanceText: { color: "#71869A", fontSize: 12, fontWeight: "700" },
+  appearanceTextActive: { color: "#4BA3E8" },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -924,22 +924,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   rowIcon: { width: 28, alignItems: "center", justifyContent: "center" },
   rowBody: { flex: 1, gap: 2 },
-  rowLabel: { color: "#101828", fontSize: 14, fontWeight: "800" },
-  rowMeta: { color: "#7185A5", fontSize: 11, lineHeight: 15 },
+  rowLabel: { color: "#172B3A", fontSize: 14, fontWeight: "800" },
+  rowMeta: { color: "#71869A", fontSize: 11, lineHeight: 15 },
   rowAction: {
     paddingHorizontal: 11,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     borderRadius: 12,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   rowActionText: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.3,
@@ -947,14 +947,14 @@ const styles = StyleSheet.create({
   },
 
   lead: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 12,
     lineHeight: 17,
     paddingHorizontal: 4,
     paddingBottom: 8,
   },
   footnote: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 11,
     lineHeight: 16,
     paddingHorizontal: 4,
@@ -969,11 +969,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     borderRadius: 4,
   },
   refreshText: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.3,
@@ -990,30 +990,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     borderRadius: 4,
   },
   providerBtnText: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
-  connectBtn: { backgroundColor: "#EAF3FF", borderColor: "#D9E7F8" },
+  connectBtn: { backgroundColor: "#EAF5FF", borderColor: "#D5E7F5" },
   connectBtnText: {
-    color: "#142B4B",
+    color: "#172B3A",
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
   disconnectBtn: { borderColor: "rgba(255,77,77,0.4)" },
-  disconnectText: { color: "#1677FF" },
+  disconnectText: { color: "#4BA3E8" },
   btnDisabled: { opacity: 0.4 },
 
   syncStatus: {
-    color: "#101828",
+    color: "#172B3A",
     fontWeight: "800",
     fontSize: 10,
     lineHeight: 14,
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   syncError: {
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontWeight: "800",
     fontSize: 10,
     lineHeight: 14,
@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
 
   nsfwWarning: {
     flex: 1,
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontSize: 11,
     lineHeight: 16,
     fontWeight: "700",

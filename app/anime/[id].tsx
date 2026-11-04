@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocalSearchParams, router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { BlurView } from "expo-blur";
 import {
   Platform,
   Pressable,
@@ -212,7 +213,7 @@ export default function AnimeDetailScreen() {
       : synopsis;
 
   return (
-    <NativeScreen tone="dark">
+    <NativeScreen tone="light">
       <View style={styles.heroBanner}>
         <Image
           source={{
@@ -235,7 +236,8 @@ export default function AnimeDetailScreen() {
             onPress={() => router.back()}
             style={styles.heroIcon}
           >
-            <AppIcon name="arrow-left" size={19} color="#FFFFFF" />
+            <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+            <AppIcon name="arrow-left" size={19} color="#172B45" />
           </Pressable>
           <View style={styles.heroTopActions}>
             <Pressable
@@ -250,11 +252,12 @@ export default function AnimeDetailScreen() {
               }
               style={styles.heroIcon}
             >
-              <AppIcon name="bookmark" size={18} color="#FFFFFF" />
+              <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <AppIcon name="bookmark" size={18} color="#172B45" />
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="More options"
+              accessibilityLabel="Share anime"
               onPress={() =>
                 Share.share({
                   title,
@@ -263,40 +266,29 @@ export default function AnimeDetailScreen() {
               }
               style={styles.heroIcon}
             >
-              <AppIcon name="share-variant" size={18} color="#FFFFFF" />
+              <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+              <AppIcon name="share-variant" size={18} color="#172B45" />
             </Pressable>
           </View>
         </View>
         <View style={styles.heroBottom}>
-          <View style={styles.detailStatus}>
-            <Text style={styles.statusLabel}>
-              {data.status === "RELEASING"
-                ? "ONGOING"
-                : data.status === "FINISHED"
-                  ? "COMPLETED"
-                  : data.status || "ANIME"}
-            </Text>
-          </View>
-          <Text style={styles.title}>{title}</Text>
-          <View style={styles.detailFacts}>
-            {data.averageScore ? (
-              <View style={styles.ratingFact}>
-                <AppIcon name="star" size={15} color="#FFC247" />
-                <Text style={styles.factText}>
-                  {(data.averageScore / 10).toFixed(1)} rating
+          <View style={styles.heroIntro}>
+            <Image source={{ uri: data.coverImage?.extraLarge || data.coverImage?.large || "" }} style={styles.poster} contentFit="cover" transition={120} cachePolicy="memory-disk" />
+            <View style={styles.titleBlock}>
+              <View style={styles.detailStatus}>
+                <Text style={styles.statusLabel}>
+                  {data.status === "RELEASING" ? "ONGOING" : data.status === "FINISHED" ? "COMPLETED" : data.status || "ANIME"}
                 </Text>
               </View>
-            ) : null}
-            <Text style={styles.factText}>
-              {data.episodes
-                ? `${data.episodes} Episodes`
-                : data.format || "Anime"}
-            </Text>
-            {data.season ? (
-              <Text style={styles.factText}>
-                {data.season} {data.seasonYear || ""}
-              </Text>
-            ) : null}
+              <Text style={styles.title}>{title}</Text>
+              {data.title.english && data.title.english !== title ? <Text style={styles.alternativeTitle} numberOfLines={1}>{data.title.english}</Text> : data.title.native && data.title.native !== title ? <Text style={styles.alternativeTitle} numberOfLines={1}>{data.title.native}</Text> : null}
+              <View style={styles.detailFacts}>
+                {data.averageScore ? <View style={styles.ratingFact}><AppIcon name="star" size={15} color="#3985F5" /><Text style={styles.factText}>{(data.averageScore / 10).toFixed(1)} rating</Text></View> : null}
+                {data.seasonYear ? <Text style={styles.factText}>{data.seasonYear}</Text> : null}
+                <Text style={styles.factText}>{data.episodes ? `${data.episodes} Episodes` : data.format || "Anime"}</Text>
+                {data.season ? <Text style={styles.factText}>{data.season}</Text> : null}
+              </View>
+            </View>
           </View>
           {data.genres?.length ? (
             <View style={styles.genreRow}>
@@ -365,7 +357,7 @@ export default function AnimeDetailScreen() {
           <AppIcon
             name={notifyMe.enabled ? "bell" : "bell-outline"}
             size={16}
-            color={notifyMe.enabled ? nothing.red : nothing.white}
+            color={notifyMe.enabled ? "#3985F5" : "#172B45"}
           />
         </Pressable>
         <Pressable
@@ -381,10 +373,11 @@ export default function AnimeDetailScreen() {
           }}
           style={({ pressed }) => [styles.shareBtn, pressed && styles.pressed]}
         >
-          <AppIcon name="share-variant" size={18} color={nothing.white} />
+          <AppIcon name="share-variant" size={18} color="#172B45" />
         </Pressable>
       </View>
       <View style={styles.summary}>
+        <Text style={styles.summaryEyebrow}>SYNOPSIS</Text>
         <Text style={styles.copy}>{synopsisShort}</Text>
         {synopsis.length > 260 ? (
           <Pressable onPress={() => setSynopsisExpanded((value) => !value)}>
@@ -393,27 +386,11 @@ export default function AnimeDetailScreen() {
             </Text>
           </Pressable>
         ) : null}
-        {data.genres?.length ? (
-          <View style={styles.genreRow}>
-            {data.genres.map((genre) => (
-              <Pressable
-                key={genre}
-                onPress={() =>
-                  router.push({
-                    pathname: "/search",
-                    params: { genre },
-                  } as never)
-                }
-                style={({ pressed }) => [
-                  styles.genreChip,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={styles.genreChipText}>{genre}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
+        {data.genres && data.genres.length > 4 ? <View style={styles.genreRow}>
+          {data.genres.slice(4).map((genre) => <Pressable key={genre} onPress={() => router.push({ pathname: "/search", params: { genre } } as never)} style={({ pressed }) => [styles.genreChip, pressed && styles.pressed]}>
+            <Text style={styles.genreChipText}>{genre}</Text>
+          </Pressable>)}
+        </View> : null}
       </View>
       <View style={styles.detailTabs}>
         <Pressable
@@ -832,17 +809,17 @@ export default function AnimeDetailScreen() {
 
 const styles = StyleSheet.create({
   heroBanner: {
-    height: 380,
+    height: 450,
     marginHorizontal: -18,
     marginTop: -8,
     marginBottom: 12,
     overflow: "hidden",
     justifyContent: "space-between",
-    backgroundColor: "#071426",
+    backgroundColor: "#EAF5FF",
   },
   heroShade: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(7,20,38,0.48)",
+    backgroundColor: "rgba(234,245,255,0.16)",
   },
   heroTop: {
     zIndex: 2,
@@ -858,25 +835,29 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 20,
-    backgroundColor: "rgba(7,20,38,0.66)",
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.78)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "rgba(255,255,255,0.9)",
+    elevation: 4,
   },
   heroBottom: {
     zIndex: 2,
-    gap: 8,
+    gap: 11,
     paddingHorizontal: 18,
-    paddingTop: 72,
-    paddingBottom: 19,
-    backgroundColor: "rgba(7,20,38,0.78)",
+    paddingTop: 28,
+    paddingBottom: 16,
+    backgroundColor: "rgba(23,43,69,0.82)",
   },
+  heroIntro: { flexDirection: "row", alignItems: "flex-end", gap: 14 },
+  alternativeTitle: { color: "#CFE5FF", fontSize: 12, fontWeight: "600" },
   detailStatus: {
     alignSelf: "flex-start",
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: "#1677FF",
+    borderRadius: 9,
+    backgroundColor: "#3985F5",
   },
   statusLabel: {
     color: "#FFFFFF",
@@ -891,69 +872,73 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   ratingFact: { flexDirection: "row", alignItems: "center", gap: 4 },
-  factText: { color: "#D5E2F4", fontSize: 12, fontWeight: "600" },
+  factText: { color: "#E6F1FF", fontSize: 12, fontWeight: "700" },
   poster: {
-    width: 122,
-    height: 182,
-    borderRadius: 14,
-    backgroundColor: nothing.raised,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+    width: 112,
+    height: 158,
+    borderRadius: 13,
+    backgroundColor: "#EAF5FF",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    elevation: 5,
   },
   titleBlock: { flex: 1, gap: 8, paddingBottom: 5 },
   title: {
     color: "#FFFFFF",
-    fontSize: 29,
+    fontSize: 26,
     fontWeight: "900",
     lineHeight: 34,
     letterSpacing: -0.8,
   },
   meta: {
-    color: nothing.muted,
+    color: "#71839A",
     fontFamily: nothing.mono,
     fontSize: 10,
     letterSpacing: 0.5,
   },
-  actions: { flexDirection: "row", gap: 9 },
-  actionCell: { flex: 1 },
+  actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, padding: 10, marginTop: -3, borderRadius: 18, borderWidth: 1, borderColor: "#C6DDF5", backgroundColor: "#FFFFFF", elevation: 2 },
+  actionCell: { flexGrow: 1, flexBasis: "40%", minWidth: 140 },
   bookmark: {
-    minWidth: 72,
-    minHeight: 50,
+    minWidth: 76,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: nothing.line,
-    borderRadius: 12,
+    borderColor: "#C6DDF5",
+    borderRadius: 13,
+    backgroundColor: "#EAF5FF",
   },
-  bookmarkActive: { borderColor: nothing.red },
+  bookmarkActive: { borderColor: "#172B45", backgroundColor: "#8CCAFF" },
   bookmarkLabel: {
-    color: nothing.white,
+    color: "#172B45",
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.8,
   },
-  bookmarkActiveLabel: { color: nothing.red },
+  bookmarkActiveLabel: { color: "#172B45" },
   notifyBtn: {
-    minWidth: 50,
-    minHeight: 50,
+    minWidth: 42,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: nothing.line,
-    borderRadius: 12,
+    borderColor: "#C6DDF5",
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
   },
   notifyBtnActive: {
-    borderColor: nothing.red,
-    backgroundColor: "rgba(255,77,77,0.08)",
+    borderColor: "#3985F5",
+    backgroundColor: "#EAF5FF",
   },
   shareBtn: {
-    minWidth: 50,
-    minHeight: 50,
+    minWidth: 42,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: nothing.line,
-    borderRadius: 12,
+    borderColor: "#C6DDF5",
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
   },
   pressed: nothing.pressed,
   continueRow: {
@@ -962,19 +947,20 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: nothing.line,
+    borderBottomColor: "#C6DDF5",
   },
-  continueRule: { width: 18, height: 2, backgroundColor: nothing.red },
-  continueText: { flex: 1, color: nothing.muted, fontSize: 13, lineHeight: 19 },
-  summary: { gap: 9, paddingVertical: 4 },
-  readMore: { color: "#73B8FF", fontSize: 13, fontWeight: "800" },
+  continueRule: { width: 18, height: 2, backgroundColor: "#3985F5" },
+  continueText: { flex: 1, color: "#71839A", fontSize: 13, lineHeight: 19 },
+  summary: { gap: 10, padding: 15, borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 18, backgroundColor: "#FFFFFF", elevation: 2 },
+  summaryEyebrow: { color: "#3985F5", fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
+  readMore: { color: "#3985F5", fontSize: 13, fontWeight: "900" },
   detailTabs: {
     flexDirection: "row",
     padding: 4,
     borderRadius: 15,
-    backgroundColor: "#10223B",
+    backgroundColor: "rgba(255,255,255,0.76)",
     borderWidth: 1,
-    borderColor: "#294361",
+    borderColor: "#C6DDF5",
   },
   detailTab: {
     flex: 1,
@@ -983,10 +969,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 11,
   },
-  detailTabActive: { backgroundColor: "#1677FF" },
-  detailTabText: { color: "#A8BBD4", fontSize: 13, fontWeight: "700" },
+  detailTabActive: { backgroundColor: "#3985F5" },
+  detailTabText: { color: "#71839A", fontSize: 13, fontWeight: "700" },
   detailTabTextActive: { color: "#FFFFFF" },
-  relationsSection: { gap: 15 },
+  relationsSection: { gap: 15, padding: 14, borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 20, backgroundColor: "#FFFFFF" },
   relationsHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1001,7 +987,7 @@ const styles = StyleSheet.create({
   },
   relationGroupCopy: { flex: 1, gap: 2 },
   relationGroupTitle: {
-    color: nothing.white,
+    color: "#172B3A",
     fontSize: 14,
     fontWeight: "900",
     lineHeight: 18,
@@ -1014,8 +1000,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.7,
   },
-  relationRailContent: { gap: 9, paddingRight: 8 },
-  relationTile: { width: 142, gap: 8 },
+  relationRailContent: { gap: 10, paddingRight: 8 },
+  relationTile: { width: 148, gap: 8, padding: 8, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 16, backgroundColor: "#FFFFFF" },
   relationPoster: {
     width: "100%",
     height: 144,
@@ -1023,17 +1009,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 12,
-    backgroundColor: nothing.raised,
+    backgroundColor: "#EAF5FF",
   },
   relationPosterFallback: {
-    color: nothing.dim,
+    color: "#71839A",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.55,
   },
   relationTileBody: { flex: 1, gap: 4 },
   relationLabel: {
-    color: nothing.red,
+    color: "#3985F5",
     fontFamily: nothing.mono,
     fontSize: 10,
     fontWeight: "800",
@@ -1041,75 +1027,75 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   relationTitle: {
-    color: nothing.white,
+    color: "#172B45",
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 17,
   },
   relationMeta: {
-    color: nothing.muted,
+    color: "#71839A",
     fontFamily: nothing.mono,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.45,
   },
-  recommendationsSection: { gap: 12, marginTop: 4 },
+  recommendationsSection: { gap: 12, marginTop: 4, padding: 14, borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 20, backgroundColor: "#FFFFFF" },
   recommendationsHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
-  recommendationsRail: { gap: 12, paddingRight: 8 },
-  recCard: { width: 128, gap: 6 },
+  recommendationsRail: { gap: 11, paddingRight: 8 },
+  recCard: { width: 136, gap: 7, padding: 7, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 16, backgroundColor: "#FFFFFF" },
   recPoster: {
     width: "100%",
     height: 180,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: nothing.raised,
+    backgroundColor: "#EAF5FF",
   },
   recPosterFallback: {
-    color: nothing.dim,
+    color: "#71839A",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.55,
   },
   recTitle: {
-    color: nothing.white,
+    color: "#172B45",
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 16,
   },
   recMeta: {
-    color: nothing.muted,
+    color: "#71839A",
     fontFamily: nothing.mono,
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 0.35,
   },
-  copy: { color: nothing.muted, fontSize: 14, lineHeight: 21 },
+  copy: { color: "#425B78", fontSize: 14, lineHeight: 22 },
   genreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   genreChip: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
-    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "#C6DDF5",
+    backgroundColor: "rgba(255,255,255,0.92)",
   },
-  genreChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  genreChipText: { color: "#3985F5", fontSize: 11, fontWeight: "800" },
   episodeHeading: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
   },
   heading: {
-    color: nothing.white,
+    color: "#172B45",
     fontSize: 21,
     fontWeight: "900",
     marginTop: 4,
   },
-  count: { color: nothing.dim, fontFamily: nothing.mono, fontSize: 12 },
+  count: { color: "#71839A", fontFamily: nothing.mono, fontSize: 12 },
   epSearch: {
     flexDirection: "row",
     alignItems: "center",
@@ -1120,11 +1106,11 @@ const styles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: nothing.line,
-    backgroundColor: nothing.raised,
+    borderColor: "#C6DDF5",
+    backgroundColor: "#FFFFFF",
   },
-  epSearchInput: { flex: 1, minHeight: 38, color: nothing.white, fontSize: 13 },
-  episodeList: { gap: 0, borderTopWidth: 1, borderTopColor: nothing.line },
+  epSearchInput: { flex: 1, minHeight: 38, color: "#172B45", fontSize: 13 },
+  episodeList: { gap: 9 },
   episodeListWide: { flexDirection: "row", flexWrap: "wrap" },
   twoPaneEpisode: { flexBasis: "48%", flexGrow: 1 },
   episodePageBar: {
@@ -1137,7 +1123,7 @@ const styles = StyleSheet.create({
   },
   episodePageText: {
     flex: 1,
-    color: nothing.dim,
+    color: "#71839A",
     fontFamily: nothing.mono,
     fontSize: 10,
     fontWeight: "800",
@@ -1153,7 +1139,7 @@ const styles = StyleSheet.create({
   },
   episodePageButtonDisabled: { opacity: 0.32 },
   episodePageButtonText: {
-    color: nothing.white,
+    color: "#3985F5",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.35,
@@ -1165,18 +1151,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 9,
     gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: nothing.line,
+    borderWidth: 1,
+    borderColor: "#C6DDF5",
+    borderRadius: 15,
+    paddingHorizontal: 9,
+    backgroundColor: "#FFFFFF",
+    elevation: 1,
   },
   episodeMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   episodeVisual: {
     width: 86,
     height: 58,
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: nothing.raised,
+    backgroundColor: "#EAF5FF",
   },
   episodeVisualMask: {
     ...StyleSheet.absoluteFillObject,
@@ -1184,36 +1174,36 @@ const styles = StyleSheet.create({
   },
   episodeNumber: {
     zIndex: 1,
-    color: nothing.white,
+    color: "#FFFFFF",
     fontFamily: nothing.mono,
     fontWeight: "900",
     fontSize: 16,
   },
   episodeBody: { flex: 1, gap: 5 },
   episodeTitle: {
-    color: nothing.white,
+    color: "#172B45",
     fontSize: 13,
     fontWeight: "900",
     lineHeight: 17,
   },
   episodeStatus: { flexDirection: "row", alignItems: "center", gap: 7 },
   episodeMeta: {
-    color: nothing.muted,
+    color: "#71839A",
     fontFamily: nothing.mono,
     fontWeight: "800",
     fontSize: 10,
     letterSpacing: 0.55,
   },
-  fillerMeta: { color: nothing.muted },
+  fillerMeta: { color: "#71839A" },
   progressTrack: {
     flex: 1,
     maxWidth: 64,
     height: 3,
     overflow: "hidden",
     borderRadius: 2,
-    backgroundColor: nothing.line,
+    backgroundColor: "#DCEBFA",
   },
-  progressFill: { height: "100%", backgroundColor: nothing.red },
+  progressFill: { height: "100%", backgroundColor: "#3985F5" },
   rating: {
     minWidth: 48,
     minHeight: 34,
@@ -1221,5 +1211,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 6,
   },
-  ratingText: { color: nothing.muted, fontWeight: "800", fontSize: 10 },
+  ratingText: { color: "#3985F5", fontWeight: "900", fontSize: 10 },
 });

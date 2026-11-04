@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import { Platform, StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
 import Bookmark from "lucide-react-native/icons/bookmark";
 import Compass from "lucide-react-native/icons/compass";
 import House from "lucide-react-native/icons/house";
@@ -28,8 +29,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: nothing.primary,
-        tabBarInactiveTintColor: "#7185A5",
+        tabBarActiveTintColor: "#287DBB",
+        tabBarInactiveTintColor: "#71869A",
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabLabel,
         tabBarStyle: {
@@ -40,32 +41,30 @@ export default function TabLayout() {
           bottom: bottomPad,
           height: 70,
           borderRadius: 24,
-          backgroundColor: "rgba(255, 255, 255, 0.9)",
+          backgroundColor: "transparent",
           borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: "#D9E7F8",
+          borderWidth: 1.5,
+          borderColor: "rgba(38,55,70,0.24)",
           elevation: 20,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 10 },
-          shadowOpacity: 0.14,
-          shadowRadius: 22,
+          shadowOpacity: 0.1,
+          shadowRadius: 18,
           paddingTop: 9,
           paddingBottom: 11,
           paddingHorizontal: 7,
         },
         tabBarItemStyle: { paddingVertical: 0 },
         tabBarBackground: () => (
-          <View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFillObject,
-              {
-                borderRadius: 24,
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                overflow: "hidden",
-              },
-            ]}
-          />
+          <View style={styles.glassTab} pointerEvents="none">
+            <BlurView
+              intensity={54}
+              tint="light"
+              experimentalBlurMethod="dimezisBlurView"
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.glassSheen} />
+          </View>
         ),
       }}
     >
@@ -102,6 +101,22 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  glassTab: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(255,255,255,0.32)",
+  },
+  glassSheen: {
+    position: "absolute",
+    top: 0,
+    left: 16,
+    right: 16,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.96)",
+  },
   tabLabel: {
     fontSize: 10,
     fontWeight: "600",
@@ -116,17 +131,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   iconWrapActive: {
-    backgroundColor: "rgba(22, 119, 255, 0.24)",
+    backgroundColor: "#B9E2FF",
   },
   discoverWrap: {
     width: 42,
     height: 42,
     marginTop: -9,
     borderRadius: 21,
-    backgroundColor: "#1677FF",
+    backgroundColor: "#4BA3E8",
     borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.9)",
-    shadowColor: "#1677FF",
+    borderColor: "rgba(255,255,255,0.92)",
+    shadowColor: "#4BA3E8",
     shadowOpacity: 0.28,
     shadowRadius: 9,
     elevation: 5,

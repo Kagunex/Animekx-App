@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { AppIcon } from "@/components/app-icon";
-import { nothing } from "@/components/nothing-ui";
+import { GlassSurface, nothing } from "@/components/nothing-ui";
 import { useNotifications } from "@/hooks/use-notifications";
 
 function timeAgo(dateStr: string): string {
@@ -27,7 +27,7 @@ export function NotificationSheet({ visible, onClose }: { visible: boolean; onCl
       <View style={styles.backdrop}>
         {/* Dismiss layer sits BEHIND the sheet so row/filter taps never bubble up and close it. */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close notifications" />
-        <View style={styles.sheet}>
+        <GlassSurface style={styles.sheet} intensity={58}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>Notifications</Text>
@@ -73,7 +73,7 @@ export function NotificationSheet({ visible, onClose }: { visible: boolean; onCl
               contentContainerStyle={styles.list}
             />
           )}
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );
@@ -81,7 +81,7 @@ export function NotificationSheet({ visible, onClose }: { visible: boolean; onCl
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.72)" },
-  sheet: { backgroundColor: nothing.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34, maxHeight: "70%", borderWidth: 1, borderColor: nothing.line, borderBottomWidth: 0 },
+  sheet: { borderRadius: 24, paddingBottom: 34, maxHeight: "70%", borderWidth: 1.5, borderColor: "rgba(38,55,70,0.22)", borderBottomWidth: 0 },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: nothing.line, alignSelf: "center", marginTop: 10, marginBottom: 8 },
   header: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 18, marginBottom: 4 },
   title: { color: nothing.white, fontSize: 17, fontWeight: "700" },

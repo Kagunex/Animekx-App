@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 4,
-    backgroundColor: nothing.white,
+    backgroundColor: "#4BA3E8",
   },
   disabled: { opacity: 0.5 },
   primaryText: { color: nothing.black, fontSize: 10, fontWeight: "900" },

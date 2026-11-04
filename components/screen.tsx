@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { AppIcon } from "@/components/app-icon";
 import { nothing } from "@/components/nothing-ui";
@@ -20,13 +21,13 @@ export function NativeScreen({
   children,
   scroll = true,
   style,
-  tone = "dark",
+  tone = "light",
 }: PropsWithChildren<{
   scroll?: boolean;
   style?: ViewStyle;
   tone?: ScreenTone;
 }>) {
-  const backgroundColor = tone === "light" ? "#F5F8FF" : "#071426";
+  const backgroundColor = tone === "light" ? "#F5FAFF" : "#102334";
   const content = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.scroll, style]}
@@ -52,7 +53,7 @@ export function NativeHeader({
   eyebrow,
   title,
   action,
-  tone = "dark",
+  tone = "light",
 }: {
   eyebrow?: string;
   title: string;
@@ -80,7 +81,7 @@ export function NativeHeader({
   );
 }
 
-export function SearchAction({ tone = "dark" }: { tone?: ScreenTone }) {
+export function SearchAction({ tone = "light" }: { tone?: ScreenTone }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -92,9 +93,16 @@ export function SearchAction({ tone = "dark" }: { tone?: ScreenTone }) {
         pressed && styles.pressed,
       ]}
     >
+      <BlurView
+        pointerEvents="none"
+        intensity={32}
+        tint="light"
+        experimentalBlurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFill}
+      />
       <AppIcon
         name="magnify"
-        color={tone === "light" ? "#142B4B" : nothing.white}
+        color={tone === "light" ? "#172B3A" : "#F7FAFF"}
         size={18}
       />
     </Pressable>
@@ -103,7 +111,7 @@ export function SearchAction({ tone = "dark" }: { tone?: ScreenTone }) {
 
 export function NotificationAction({
   onPress,
-  tone = "dark",
+  tone = "light",
 }: {
   onPress?: () => void;
   tone?: ScreenTone;
@@ -119,9 +127,16 @@ export function NotificationAction({
         pressed && styles.pressed,
       ]}
     >
+      <BlurView
+        pointerEvents="none"
+        intensity={32}
+        tint="light"
+        experimentalBlurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFill}
+      />
       <AppIcon
         name="bell"
-        color={tone === "light" ? "#142B4B" : nothing.white}
+        color={tone === "light" ? "#172B3A" : "#F7FAFF"}
         size={18}
       />
     </Pressable>
@@ -129,7 +144,7 @@ export function NotificationAction({
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: nothing.black },
+  safe: { flex: 1, backgroundColor: "#F5FAFF" },
   scroll: { paddingHorizontal: 18, paddingBottom: 128, gap: 24 },
   fill: { flex: 1 },
   header: {
@@ -149,14 +164,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  eyebrowLight: { color: "#1677FF" },
+  eyebrowLight: { color: "#287DBB" },
   headerTitle: {
     color: nothing.white,
     fontSize: 26,
     fontWeight: "800",
     letterSpacing: -0.7,
   },
-  headerTitleLight: { color: "#101828" },
+  headerTitleLight: { color: "#172B3A" },
   iconButton: {
     width: 40,
     height: 40,
@@ -164,9 +179,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-    backgroundColor: nothing.raised,
+    borderColor: "rgba(38,55,70,0.2)",
+    backgroundColor: "rgba(255,255,255,0.72)",
+    shadowColor: "#263746",
+    shadowOffset: { width: 2, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+    overflow: "hidden",
   },
-  iconButtonLight: { borderColor: "#D9E7F8", backgroundColor: "#FFFFFF" },
+  iconButtonLight: { borderColor: "rgba(38,55,70,0.2)", backgroundColor: "rgba(255,255,255,0.72)" },
   pressed: nothing.pressed,
 });

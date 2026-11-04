@@ -98,7 +98,7 @@ function SearchResultRow({
           cachePolicy="memory-disk"
         />
         <View style={styles.resultPlayBadge}>
-          <AppIcon name="play" size={14} color={"#101828"} />
+          <AppIcon name="play" size={14} color={"#172B3A"} />
         </View>
       </View>
       <View style={styles.resultBody}>
@@ -297,10 +297,10 @@ export default function SearchScreen() {
           onPress={() => router.back()}
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <AppIcon name="arrow-left" size={21} color="#142B4B" />
+          <AppIcon name="arrow-left" size={21} color="#172B3A" />
         </Pressable>
         <View style={styles.searchInputWrap}>
-          <AppIcon name="magnify" size={18} color={"#526985"} />
+          <AppIcon name="magnify" size={18} color={"#71869A"} />
           <TextInput
             autoFocus={!isCategoryMode}
             value={input}
@@ -309,7 +309,7 @@ export default function SearchScreen() {
             placeholder={
               hasCategory ? `Search in ${categoryLabel}...` : "Search anime..."
             }
-            placeholderTextColor={"#7185A5"}
+            placeholderTextColor={"#71869A"}
             style={styles.input}
             returnKeyType="search"
           />
@@ -318,7 +318,7 @@ export default function SearchScreen() {
               <Text style={styles.genreClearText}>
                 {categoryLabel.toUpperCase()}
               </Text>
-              <AppIcon name="close" size={14} color={"#1677FF"} />
+              <AppIcon name="close" size={14} color={"#4BA3E8"} />
             </Pressable>
           ) : null}
         </View>
@@ -372,7 +372,7 @@ export default function SearchScreen() {
                       }
                       style={styles.recentChipClose}
                     >
-                      <AppIcon name="close" size={13} color="#7185A5" />
+                      <AppIcon name="close" size={13} color="#71869A" />
                     </Pressable>
                   </View>
                 ))}
@@ -401,7 +401,7 @@ export default function SearchScreen() {
                   <Text numberOfLines={1} style={styles.trendingTitle}>
                     {animeTitle(anime)}
                   </Text>
-                  <AppIcon name="arrow-top-right" size={15} color="#7185A5" />
+                  <AppIcon name="arrow-top-right" size={15} color="#71869A" />
                 </Pressable>
               ))}
           </View>
@@ -519,7 +519,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 20,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   searchInputWrap: {
     flex: 1,
@@ -530,16 +530,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
   },
-  input: { flex: 1, minHeight: 46, color: "#101828", fontSize: 15 },
+  input: { flex: 1, minHeight: 46, color: "#172B3A", fontSize: 15 },
   filterBtn: {
     width: 38,
     height: 38,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -553,7 +553,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,77,77,0.12)",
   },
   genreClearText: {
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.3,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   recentChipLabel: { maxWidth: 190, paddingVertical: 7 },
   recentChipClose: {
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 13,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   trendingSection: { gap: 3 },
   trendingRow: {
@@ -591,42 +591,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   trendingRank: {
     width: 20,
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 16,
     fontWeight: "900",
     textAlign: "center",
   },
-  trendingRankTop: { color: "#1677FF" },
-  trendingTitle: { flex: 1, color: "#101828", fontSize: 13, fontWeight: "700" },
+  trendingRankTop: { color: "#4BA3E8" },
+  trendingTitle: { flex: 1, color: "#172B3A", fontSize: 13, fontWeight: "700" },
   promoBanner: {
     minHeight: 118,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
     borderRadius: 20,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   promoCopy: { flex: 1, paddingHorizontal: 15, paddingVertical: 13, gap: 4 },
   promoEyebrow: {
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontSize: 9,
     fontWeight: "900",
     letterSpacing: 0.9,
   },
   promoTitle: {
     maxWidth: 200,
-    color: "#142B4B",
+    color: "#172B3A",
     fontSize: 18,
     fontWeight: "900",
     lineHeight: 22,
   },
-  promoSub: { color: "#526985", fontSize: 11 },
+  promoSub: { color: "#71869A", fontSize: 11 },
   promoImage: { width: 78, height: "100%", minHeight: 118 },
   promoArt: {
     width: 78,
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     minHeight: 118,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1677FF",
+    backgroundColor: "#4BA3E8",
   },
   historySection: { gap: 8 },
   historyHead: {
@@ -643,23 +643,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
-  historyLabel: { color: "#101828", fontSize: 15, fontWeight: "800" },
-  clearBtn: { color: "#1677FF", fontSize: 12, fontWeight: "800" },
+  historyLabel: { color: "#172B3A", fontSize: 15, fontWeight: "800" },
+  clearBtn: { color: "#4BA3E8", fontSize: 12, fontWeight: "800" },
   historyRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   historyBody: { flex: 1, gap: 1 },
-  historyTerm: { color: "#101828", fontSize: 14, fontWeight: "700" },
-  historyTime: { color: "#7185A5", fontSize: 11, fontWeight: "600" },
+  historyTerm: { color: "#172B3A", fontSize: 14, fontWeight: "700" },
+  historyTime: { color: "#71869A", fontSize: 11, fontWeight: "600" },
 
   genreSection: { gap: 10 },
   genreLabel: {
-    color: "#526985",
+    color: "#71869A",
     fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
@@ -671,29 +671,36 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
   },
-  genreChipText: { color: "#101828", fontSize: 13, fontWeight: "700" },
+  genreChipText: { color: "#172B3A", fontSize: 13, fontWeight: "700" },
 
   resultsWrap: { flex: 1 },
   resultsHead: { paddingHorizontal: 16, paddingBottom: 8 },
-  resultsList: { paddingHorizontal: 16, paddingBottom: 112 },
+  resultsList: { paddingHorizontal: 16, paddingBottom: 112, gap: 8 },
 
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    padding: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "rgba(38,55,70,0.18)",
+    backgroundColor: "rgba(255,255,255,0.88)",
+    shadowColor: "#263746",
+    shadowOffset: { width: 2, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 0,
+    elevation: 1,
   },
   resultThumb: {
     width: 72,
     height: 104,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   resultPlayBadge: {
     ...StyleSheet.absoluteFillObject,
@@ -703,12 +710,12 @@ const styles = StyleSheet.create({
   },
   resultBody: { flex: 1, gap: 4 },
   resultTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 19,
   },
-  resultMeta: { color: "#7185A5", fontSize: 12, fontWeight: "700" },
+  resultMeta: { color: "#71869A", fontSize: 12, fontWeight: "700" },
 
   pressed: nothing.pressed,
 });

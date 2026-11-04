@@ -19,7 +19,7 @@ export default function SupportScreen() {
   const openPatreon = async () => {
     setMessage(null);
     try {
-      await WebBrowser.openBrowserAsync(PATREON_URL, { toolbarColor: nothing.black, controlsColor: nothing.white, showTitle: false });
+      await WebBrowser.openBrowserAsync(PATREON_URL, { toolbarColor: "#F5FAFF", controlsColor: nothing.white, showTitle: false });
     } catch {
       setMessage("PATREON COULD NOT OPEN.");
     }
@@ -134,12 +134,12 @@ const styles = StyleSheet.create({
   methodMeta: { color: nothing.muted, fontFamily: "SpaceGrotesk-Regular", fontSize: 11, marginTop: 2 },
 
   methodActions: { flexDirection: "row", gap: 10 },
-  primaryBtn: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: nothing.white, borderRadius: 8 },
+  primaryBtn: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#4BA3E8", borderRadius: 8 },
   primaryBtnText: { color: nothing.black, fontFamily: "SpaceGrotesk-SemiBold", fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   secondaryBtn: { minWidth: 90, minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: nothing.line, borderRadius: 8 },
   secondaryBtnText: { color: nothing.muted, fontFamily: "SpaceGrotesk-Medium", fontSize: 11, fontWeight: "700", letterSpacing: 0.3 },
 
-  uidBox: { width: "100%", padding: 12, borderRadius: 8, backgroundColor: nothing.black, borderWidth: 1, borderColor: nothing.line },
+  uidBox: { width: "100%", padding: 12, borderRadius: 8, backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: nothing.line },
   uidLabel: { color: nothing.dim, fontFamily: "SpaceGrotesk-Medium", fontSize: 10, fontWeight: "800", letterSpacing: 0.8, marginBottom: 6 },
   uidRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   uidValue: { color: nothing.white, fontFamily: "SpaceGrotesk-SemiBold", fontSize: 20, fontWeight: "900", letterSpacing: 1 },

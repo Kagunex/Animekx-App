@@ -50,7 +50,7 @@ function BrightnessBar({ value }: { value: number }) {
       <View style={sliderStyles.track}>
         <Animated.View style={[sliderStyles.fill, { height }]} />
       </View>
-      <AppIcon name="brightness-6" size={16} color={nothing.white} />
+      <AppIcon name="brightness-6" size={16} color={"#FFFFFF"} />
     </View>
   );
 }
@@ -65,7 +65,7 @@ function VolumeBar({ value }: { value: number }) {
       <View style={sliderStyles.track}>
         <Animated.View style={[sliderStyles.fill, { height }]} />
       </View>
-      <AppIcon name={value === 0 ? "volume-mute" : value < 0.5 ? "volume-low" : "volume-high"} size={16} color={nothing.white} />
+      <AppIcon name={value === 0 ? "volume-mute" : value < 0.5 ? "volume-low" : "volume-high"} size={16} color={"#FFFFFF"} />
     </View>
   );
 }
@@ -95,7 +95,7 @@ function SeekRipple({ side, visible }: { side: "left" | "right"; visible: boolea
       side === "left" ? rippleStyles.left : rippleStyles.right,
       { transform: [{ scale }], opacity },
     ]}>
-      <AppIcon name={side === "left" ? "rewind-10" : "fast-forward-10"} size={36} color={nothing.white} />
+      <AppIcon name={side === "left" ? "rewind-10" : "fast-forward-10"} size={36} color={"#FFFFFF"} />
       <Text style={rippleStyles.text}>{SEEK_STEP}s</Text>
     </Animated.View>
   );
@@ -315,7 +315,7 @@ export function SeekIndicator({ delta }: { delta: number }) {
   const isForward = delta > 0;
   return (
     <Animated.View style={[seekStyles.indicator, isForward ? seekStyles.right : seekStyles.left, { opacity, transform: [{ scale }] }]}>
-      <AppIcon name={isForward ? "fast-forward-10" : "rewind-10"} size={28} color={nothing.white} />
+      <AppIcon name={isForward ? "fast-forward-10" : "rewind-10"} size={28} color={"#FFFFFF"} />
       <Text style={seekStyles.text}>{Math.abs(Math.round(delta))}s</Text>
     </Animated.View>
   );
@@ -329,7 +329,7 @@ const rippleStyles = StyleSheet.create({
   container: { position: "absolute", top: "35%", width: 80, height: 80, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 40 },
   left: { left: 30 },
   right: { right: 30 },
-  text: { color: nothing.white, fontSize: 11, fontWeight: "900", marginTop: 2 },
+  text: { color: "#FFFFFF", fontSize: 11, fontWeight: "900", marginTop: 2 },
 });
 
 const sliderStyles = StyleSheet.create({
@@ -337,11 +337,11 @@ const sliderStyles = StyleSheet.create({
   rightWrap: { position: "absolute", right: 20, top: "25%", bottom: "25%", justifyContent: "center" },
   container: { alignItems: "center", justifyContent: "flex-end", gap: 6 },
   track: { width: 32, height: 120, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.15)", overflow: "hidden", justifyContent: "flex-end" },
-  fill: { width: "100%", backgroundColor: nothing.white, borderRadius: 16 },
+  fill: { width: "100%", backgroundColor: "#FFFFFF", borderRadius: 16 },
 });
 
 const ffStyles = StyleSheet.create({
-  badge: { position: "absolute", top: 12, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: nothing.white },
+  badge: { position: "absolute", top: 12, alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: "#FFFFFF" },
   text: { color: nothing.black, fontSize: 18, fontWeight: "900" },
 });
 
@@ -349,7 +349,7 @@ const seekStyles = StyleSheet.create({
   indicator: { position: "absolute", top: "40%", width: 70, height: 70, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(0,0,0,0.5)", borderRadius: 35 },
   left: { left: 40 },
   right: { right: 40 },
-  text: { color: nothing.white, fontSize: 11, fontWeight: "800", marginTop: 2 },
+  text: { color: "#FFFFFF", fontSize: 11, fontWeight: "800", marginTop: 2 },
 });
 
 const loadingStyles = StyleSheet.create({

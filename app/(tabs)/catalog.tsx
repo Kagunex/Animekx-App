@@ -292,13 +292,13 @@ export default function CatalogScreen() {
         <Text style={styles.subtitle}>Discover your favorite anime.</Text>
         <View style={styles.searchRow}>
           <View style={styles.searchInputWrap}>
-            <AppIcon name="magnify" size={18} color="#7185A5" />
+            <AppIcon name="magnify" size={18} color="#71869A" />
             <TextInput
               autoFocus
               value={input}
               onChangeText={setInput}
               placeholder="Search anime..."
-              placeholderTextColor="#7185A5"
+              placeholderTextColor="#71869A"
               style={styles.input}
               returnKeyType="search"
             />
@@ -324,7 +324,7 @@ export default function CatalogScreen() {
             }
             style={styles.filterBtn}
           >
-            <AppIcon name="tune-variant" size={19} color="#142B4B" />
+            <AppIcon name="tune-variant" size={19} color="#172B3A" />
           </Pressable>
         </View>
         <View style={styles.categoryTabs}>
@@ -591,7 +591,7 @@ export default function CatalogScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   header: { paddingHorizontal: 18, gap: 5, paddingBottom: 12 },
-  subtitle: { color: "#7185A5", fontSize: 14, marginTop: -5, marginBottom: 6 },
+  subtitle: { color: "#71869A", fontSize: 14, marginTop: -5, marginBottom: 6 },
   searchRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   searchInputWrap: {
     flex: 1,
@@ -602,29 +602,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
   },
-  input: { flex: 1, minHeight: 44, color: "#101828", fontSize: 15 },
+  input: { flex: 1, minHeight: 44, color: "#172B3A", fontSize: 15 },
   filterBtn: {
     width: 46,
     height: 46,
     borderRadius: 23,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   categoryTabs: { flexDirection: "row", gap: 8, marginTop: 10 },
   categoryTab: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 18,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
-  categoryTabActive: { backgroundColor: "#1677FF" },
-  categoryTabText: { color: "#526985", fontSize: 12, fontWeight: "700" },
+  categoryTabActive: { backgroundColor: "#4BA3E8" },
+  categoryTabText: { color: "#71869A", fontSize: 12, fontWeight: "700" },
   categoryTabTextActive: { color: "#FFFFFF" },
 
   idleContent: { paddingHorizontal: 18, paddingTop: 4, gap: 23 },
@@ -635,8 +635,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  sectionHint: { color: "#7185A5", fontSize: 12 },
-  seeAllText: { color: "#1677FF", fontSize: 12, fontWeight: "700" },
+  sectionHint: { color: "#71869A", fontSize: 12 },
+  seeAllText: { color: "#4BA3E8", fontSize: 12, fontWeight: "700" },
   categoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#DCEBFA",
   },
-  categoryFallback: { backgroundColor: "#73B8FF" },
+  categoryFallback: { backgroundColor: "#8CCFFF" },
   categoryScrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(7,20,38,0.16)",
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 6,
   },
-  historyLabel: { color: "#101828", fontSize: 15, fontWeight: "800" },
+  historyLabel: { color: "#172B3A", fontSize: 15, fontWeight: "800" },
   clearBtn: { color: nothing.red, fontSize: 12, fontWeight: "800" },
   historyRow: {
     flexDirection: "row",
@@ -684,12 +684,12 @@ const styles = StyleSheet.create({
     borderBottomColor: nothing.line,
   },
   historyBody: { flex: 1, gap: 1 },
-  historyTerm: { color: "#101828", fontSize: 14, fontWeight: "700" },
+  historyTerm: { color: "#172B3A", fontSize: 14, fontWeight: "700" },
   historyTime: { color: nothing.dim, fontSize: 11, fontWeight: "600" },
 
   topSection: { gap: 12 },
   sectionTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 18,
     fontWeight: "900",
     marginTop: 4,
@@ -722,7 +722,7 @@ const styles = StyleSheet.create({
     fontFamily: nothing.mono,
   },
   topCardTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 17,
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
 
   genreSection: { gap: 10 },
   genreLabel: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
@@ -745,7 +745,7 @@ const styles = StyleSheet.create({
     borderColor: nothing.line,
     backgroundColor: nothing.raised,
   },
-  genreChipText: { color: "#142B4B", fontSize: 13, fontWeight: "700" },
+  genreChipText: { color: "#172B3A", fontSize: 13, fontWeight: "700" },
 
   resultsWrap: { flex: 1 },
   resultsHead: { paddingHorizontal: 16, paddingBottom: 8 },
@@ -774,12 +774,12 @@ const styles = StyleSheet.create({
   },
   resultBody: { flex: 1, gap: 4 },
   resultTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 19,
   },
-  resultMeta: { color: "#7185A5", fontSize: 12, fontWeight: "700" },
+  resultMeta: { color: "#71869A", fontSize: 12, fontWeight: "700" },
 
   pressed: nothing.pressed,
 });

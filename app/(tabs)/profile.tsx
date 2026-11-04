@@ -29,7 +29,7 @@ function ProfileHeader() {
         onPress={() => router.back()}
         style={styles.headerButton}
       >
-        <AppIcon name="arrow-left" size={20} color="#142B4B" />
+        <AppIcon name="arrow-left" size={20} color="#172B3A" />
       </Pressable>
       <View style={styles.headerCopy}>
         <DotLabel tone="muted">ANIMEKZ ACCOUNT</DotLabel>
@@ -41,7 +41,7 @@ function ProfileHeader() {
         onPress={() => router.push("/settings" as never)}
         style={styles.headerButton}
       >
-        <AppIcon name="cog-outline" size={20} color="#142B4B" />
+        <AppIcon name="cog-outline" size={20} color="#172B3A" />
       </Pressable>
     </View>
   );
@@ -163,7 +163,7 @@ export default function ProfileScreen() {
         <AppIcon
           name={showAvatars ? "chevron-up" : "chevron-down"}
           size={22}
-          color={"#101828"}
+          color={"#172B3A"}
         />
       </Pressable>
       {showAvatars ? (
@@ -241,12 +241,12 @@ export default function ProfileScreen() {
           <AppIcon
             name="bookmark-multiple-outline"
             size={24}
-            color={"#101828"}
+            color={"#172B3A"}
           />
           <Text style={styles.commandTitle}>Library</Text>
           <Text style={styles.commandCopy}>History, saved anime, alerts</Text>
           <View style={styles.commandArrow}>
-            <AppIcon name="arrow-top-right" size={18} color="#1677FF" />
+            <AppIcon name="arrow-top-right" size={18} color="#4BA3E8" />
           </View>
         </Pressable>
         <Pressable
@@ -254,11 +254,11 @@ export default function ProfileScreen() {
           onPress={() => router.push("/settings" as never)}
           style={({ pressed }) => [styles.command, pressed && styles.pressed]}
         >
-          <AppIcon name="cog-outline" size={24} color={"#101828"} />
+          <AppIcon name="cog-outline" size={24} color={"#172B3A"} />
           <Text style={styles.commandTitle}>Settings</Text>
           <Text style={styles.commandCopy}>Account and playback</Text>
           <View style={styles.commandArrow}>
-            <AppIcon name="arrow-top-right" size={18} color="#1677FF" />
+            <AppIcon name="arrow-top-right" size={18} color="#4BA3E8" />
           </View>
         </Pressable>
       </View>
@@ -267,9 +267,9 @@ export default function ProfileScreen() {
           onPress={() => setShowAvatars(true)}
           style={styles.profileAction}
         >
-          <AppIcon name="account-edit-outline" size={18} color="#1677FF" />
+          <AppIcon name="account-edit-outline" size={18} color="#4BA3E8" />
           <Text style={styles.profileActionLabel}>Edit Profile</Text>
-          <AppIcon name="chevron-right" size={18} color="#7185A5" />
+          <AppIcon name="chevron-right" size={18} color="#71869A" />
         </Pressable>
         <Pressable
           onPress={() =>
@@ -280,25 +280,25 @@ export default function ProfileScreen() {
           }
           style={styles.profileAction}
         >
-          <AppIcon name="lock" size={18} color="#1677FF" />
+          <AppIcon name="lock" size={18} color="#4BA3E8" />
           <Text style={styles.profileActionLabel}>Change Password</Text>
-          <AppIcon name="chevron-right" size={18} color="#7185A5" />
+          <AppIcon name="chevron-right" size={18} color="#71869A" />
         </Pressable>
         <Pressable
           onPress={() => router.push("/settings" as never)}
           style={styles.profileAction}
         >
-          <AppIcon name="link-variant" size={18} color="#1677FF" />
+          <AppIcon name="link-variant" size={18} color="#4BA3E8" />
           <Text style={styles.profileActionLabel}>Linked Accounts</Text>
-          <AppIcon name="chevron-right" size={18} color="#7185A5" />
+          <AppIcon name="chevron-right" size={18} color="#71869A" />
         </Pressable>
         <Pressable
           onPress={() => router.push("/support" as never)}
           style={styles.profileAction}
         >
-          <AppIcon name="heart-outline" size={18} color="#1677FF" />
+          <AppIcon name="heart-outline" size={18} color="#4BA3E8" />
           <Text style={styles.profileActionLabel}>Help &amp; Support</Text>
-          <AppIcon name="chevron-right" size={18} color="#7185A5" />
+          <AppIcon name="chevron-right" size={18} color="#71869A" />
         </Pressable>
       </View>
       <Pressable
@@ -319,7 +319,7 @@ export default function ProfileScreen() {
             Patreon and optional USDT BEP20
           </Text>
         </View>
-        <AppIcon name="chevron-right" size={22} color={"#101828"} />
+        <AppIcon name="chevron-right" size={22} color={"#172B3A"} />
       </Pressable>
       <View style={styles.syncFoot}>
         <Signal label="UP TO DATE" tone="live" />
@@ -346,10 +346,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   headerCopy: { flex: 1, gap: 2 },
-  headerTitle: { color: "#101828", fontSize: 24, fontWeight: "900" },
+  headerTitle: { color: "#172B3A", fontSize: 24, fontWeight: "900" },
   geoShape: {
     position: "absolute",
     top: 98,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     paddingHorizontal: 14,
     marginTop: 14,
   },
@@ -374,17 +374,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 11,
     borderBottomWidth: 1,
-    borderBottomColor: "#EAF3FF",
+    borderBottomColor: "#EAF5FF",
   },
   profileActionLabel: {
     flex: 1,
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 13,
     fontWeight: "700",
   },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   loadingText: {
-    color: "#526985",
+    color: "#71869A",
     fontWeight: "800",
     letterSpacing: 1,
     fontSize: 10,
@@ -397,24 +397,24 @@ const styles = StyleSheet.create({
   },
   guestCopy: { gap: 9 },
   overline: {
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.8,
   },
   title: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 29,
     fontWeight: "900",
     lineHeight: 34,
     letterSpacing: -0.9,
   },
-  copy: { color: "#526985", fontSize: 13, lineHeight: 19 },
+  copy: { color: "#71869A", fontSize: 13, lineHeight: 19 },
   guestSupportLink: { minHeight: 30, justifyContent: "center" },
-  guestSupportText: { color: "#526985", fontSize: 13, fontWeight: "700" },
+  guestSupportText: { color: "#71869A", fontSize: 13, fontWeight: "700" },
   guestFoot: { gap: 8 },
-  footRule: { height: 1, backgroundColor: "#D9E7F8" },
-  footText: { color: "#526985", fontSize: 12, lineHeight: 18, maxWidth: 285 },
+  footRule: { height: 1, backgroundColor: "#D5E7F5" },
+  footText: { color: "#71869A", fontSize: 12, lineHeight: 18, maxWidth: 285 },
   profileHero: {
     minHeight: 132,
     flexDirection: "row",
@@ -422,22 +422,22 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   avatar: {
     width: 62,
     height: 62,
     borderRadius: 31,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   identity: { flex: 1, gap: 6 },
-  email: { color: "#526985", fontSize: 12 },
+  email: { color: "#71869A", fontSize: 12 },
   avatarEdit: {
     width: 38,
     height: 38,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
     borderRadius: 19,
   },
   avatarCommand: {
@@ -449,28 +449,28 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
-    borderBottomColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
+    borderBottomColor: "#D5E7F5",
   },
-  avatarCommandActive: { borderBottomColor: "#1677FF" },
+  avatarCommandActive: { borderBottomColor: "#4BA3E8" },
   avatarCommandTitle: {
     marginTop: 4,
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 16,
     fontWeight: "900",
   },
-  avatarCommandCopy: { marginTop: 3, color: "#526985", fontSize: 11 },
+  avatarCommandCopy: { marginTop: 3, color: "#71869A", fontSize: 11 },
   avatarPanel: {
     padding: 14,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
-    borderBottomColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
+    borderBottomColor: "#D5E7F5",
   },
   avatarMessage: {
     marginBottom: 10,
-    color: "#1677FF",
+    color: "#4BA3E8",
     fontSize: 10,
     fontWeight: "800",
   },
@@ -482,18 +482,18 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     borderRadius: 5,
     overflow: "hidden",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
-  avatarChoiceActive: { borderColor: "#1677FF" },
+  avatarChoiceActive: { borderColor: "#4BA3E8" },
   avatarImage: { width: "100%", height: "100%" },
   statsSection: {
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
     gap: 12,
   },
   statsHeading: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 18,
     fontWeight: "900",
     marginTop: 4,
@@ -506,19 +506,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     gap: 4,
   },
   statValue: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 28,
     fontWeight: "900",
     letterSpacing: -0.8,
   },
   statLabel: {
-    color: "#526985",
+    color: "#71869A",
     fontFamily: nothing.mono,
     fontSize: 9,
     fontWeight: "800",
@@ -533,11 +533,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
-  favTitle: { flex: 1, color: "#101828", fontSize: 13, fontWeight: "800" },
+  favTitle: { flex: 1, color: "#172B3A", fontSize: 13, fontWeight: "800" },
   favMeta: {
-    color: "#526985",
+    color: "#71869A",
     fontFamily: nothing.mono,
     fontSize: 10,
     fontWeight: "700",
@@ -551,15 +551,15 @@ const styles = StyleSheet.create({
     gap: 7,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
-    shadowColor: "#142B4B",
+    shadowColor: "#172B3A",
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
   },
-  commandTitle: { color: "#101828", fontSize: 18, fontWeight: "900" },
-  commandCopy: { color: "#526985", fontSize: 11, lineHeight: 15 },
+  commandTitle: { color: "#172B3A", fontSize: 18, fontWeight: "900" },
+  commandCopy: { color: "#71869A", fontSize: 11, lineHeight: 15 },
   commandArrow: { position: "absolute", top: 11, right: 11 },
   supportCommand: {
     minHeight: 76,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
   },
   supportIcon: {
     width: 42,
@@ -578,11 +578,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 14,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   supportCopy: { flex: 1, gap: 3 },
-  supportTitle: { color: "#101828", fontSize: 16, fontWeight: "900" },
-  supportDetail: { color: "#526985", fontSize: 11 },
+  supportTitle: { color: "#172B3A", fontSize: 16, fontWeight: "900" },
+  supportDetail: { color: "#71869A", fontSize: 11 },
   syncFoot: { gap: 7 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
 });

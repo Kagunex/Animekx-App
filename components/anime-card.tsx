@@ -8,7 +8,7 @@ import { AppIcon } from "@/components/app-icon";
 import type { Anime } from "@/lib/types";
 import { animeTitle } from "@/lib/types";
 import { usePrefetchAnime } from "@/lib/prefetch";
-import { nothing } from "@/components/nothing-ui";
+import { GlassSurface, nothing } from "@/components/nothing-ui";
 
 type ActionItem = { label: string; icon: string; onPress: () => void };
 
@@ -163,7 +163,7 @@ export function AnimeCard({
           style={styles.backdrop}
           onPress={() => setMenuVisible(false)}
         >
-          <View style={styles.sheet}>
+          <GlassSurface style={styles.sheet} intensity={52}>
             <View style={styles.sheetHeader}>
               <Text numberOfLines={1} style={styles.sheetTitle}>
                 {title}
@@ -193,7 +193,7 @@ export function AnimeCard({
                 <Text style={styles.actionLabel}>{action.label}</Text>
               </Pressable>
             ))}
-          </View>
+          </GlassSurface>
         </Pressable>
       </Modal>
     </>
@@ -205,9 +205,9 @@ const styles = StyleSheet.create({
   compactCard: { width: 112 },
   lightCard: { width: 132 },
   lightMeta: { backgroundColor: "transparent" },
-  lightMedia: { borderColor: "#D9E7F8" },
-  lightTitle: { color: "#101828" },
-  lightDetail: { color: "#7185A5" },
+  lightMedia: { borderColor: "#D5E7F5" },
+  lightTitle: { color: "#172B3A" },
+  lightDetail: { color: "#71869A" },
   pressed: nothing.pressed,
   media: {
     height: 188,
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "rgba(7,8,13,0.82)",
     borderWidth: 1,
-    borderColor: "rgba(22,119,255,0.35)",
+    borderColor: "rgba(75,163,232,0.35)",
   },
   scoreText: {
     color: nothing.accent,
@@ -265,10 +265,9 @@ const styles = StyleSheet.create({
   sheet: {
     gap: 0,
     padding: 4,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: nothing.line,
-    backgroundColor: nothing.surface,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: "rgba(38,55,70,0.24)",
     overflow: "hidden",
   },
   sheetHeader: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12 },

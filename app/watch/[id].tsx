@@ -2335,7 +2335,7 @@ export default function WatchScreen() {
       {/* ── Download / status toast (auto-dismisses) ── */}
       {downloadMessage ? (
         <View style={styles.statusToast} pointerEvents="none">
-          <Download size={13} color={nothing.white} />
+          <Download size={13} color={"#FFFFFF"} />
           <Text style={styles.statusToastText}>{downloadMessage}</Text>
         </View>
       ) : null}
@@ -2542,7 +2542,7 @@ export default function WatchScreen() {
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Settings</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close settings" hitSlop={8}>
-            <X size={15} color="#FFF" />
+            <X size={15} color="#142B4B" />
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={ps.settingsContent} showsVerticalScrollIndicator={false}>
@@ -2589,7 +2589,7 @@ export default function WatchScreen() {
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Subtitles</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close subtitles" hitSlop={8}>
-            <X size={15} color="#FFF" />
+            <X size={15} color="#142B4B" />
           </Pressable>
         </View>
         <ScrollView contentContainerStyle={ps.settingsContent} showsVerticalScrollIndicator={false}>
@@ -2649,6 +2649,32 @@ export default function WatchScreen() {
     {!manualFullscreen ? <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
       <View style={styles.th3Section}>
         <Text style={styles.th3Watching}><Text style={styles.th3WatchingGreen}>You are watching </Text><Text style={styles.th3WatchingWhite}>Episode {episode}</Text></Text>
+        <View style={styles.watchAnimeCard}>
+          {image ? <Image source={{ uri: image }} style={styles.watchAnimePoster} contentFit="cover" cachePolicy="memory-disk" /> : null}
+          <View style={styles.watchAnimeCopy}>
+            <Text style={styles.watchAnimeEyebrow}>NOW STREAMING · EP {episode}</Text>
+            <Text style={styles.watchAnimeTitle} numberOfLines={2}>{title}</Text>
+            {selectedEpisode?.title ? <Text style={styles.watchAnimeEpisode} numberOfLines={2}>{selectedEpisode.title}</Text> : null}
+            <View style={styles.watchMetaRow}>
+              {animeQuery.data?.averageScore != null ? <Text style={styles.watchMetaBadge}>★ {animeQuery.data.averageScore}%</Text> : null}
+              {animeQuery.data?.seasonYear ? <Text style={styles.watchMetaBadge}>{animeQuery.data.seasonYear}</Text> : null}
+              {animeQuery.data?.format ? <Text style={styles.watchMetaBadge}>{animeQuery.data.format.replace(/_/g, " ")}</Text> : null}
+            </View>
+          </View>
+        </View>
+        {animeQuery.data?.genres?.length ? <View style={styles.watchGenreRow}>{animeQuery.data.genres.slice(0, 4).map((genre) => <Text key={genre} style={styles.watchGenreBadge}>{genre}</Text>)}</View> : null}
+        {animeQuery.data?.description ? <View style={styles.watchSynopsis}>
+          <Text style={styles.watchSynopsisLabel}>SYNOPSIS</Text>
+          <Text style={styles.watchSynopsisText} numberOfLines={4}>{animeQuery.data.description.replace(/<[^>]+>/g, "")}</Text>
+        </View> : null}
+        <View style={styles.watchEpisodeNav}>
+          <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.watchEpisodeButton, !previousKnownEpisode && styles.watchEpisodeDisabled]}>
+            <SkipBack size={16} color="#2878F0" /><Text style={styles.watchEpisodeButtonText}>PREVIOUS</Text>
+          </Pressable>
+          <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={[styles.watchEpisodeButton, styles.watchEpisodeNext, !nextKnownEpisode && styles.watchEpisodeDisabled]}>
+            <Text style={[styles.watchEpisodeButtonText, styles.watchEpisodeNextText]}>NEXT EPISODE</Text><SkipForward size={16} color="#FFFFFF" />
+          </Pressable>
+        </View>
         {swipeDirectionHint ? <View style={styles.swipeHintRow}><AppIcon name="chevron-left" size={12} color={previousKnownEpisode ? nothing.muted : nothing.dim} /><Text style={[styles.swipeHintText, !previousKnownEpisode && !nextKnownEpisode && { color: nothing.dim }]}>{swipeDirectionHint}</Text><AppIcon name="chevron-right" size={12} color={nextKnownEpisode ? nothing.muted : nothing.dim} /></View> : null}
         <View style={styles.th3Tabs}>
           {providers.sub.length > 0 && providers.dub.length > 0 ? (["sub", "dub"] as Language[]).map((item) => { const active = language === item; return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`${item === "sub" ? "Subtitled" : "Dubbed"}${active ? " (selected)" : ""}`} accessibilityHint="Switch to this audio language" onPress={() => selectLanguage(item)} style={[styles.th3Tab, active && styles.th3TabActive]}><Text style={[styles.th3TabText, active && styles.th3TabTextActive]}>{item === "sub" ? "SUB" : "DUB"}</Text></Pressable>; }) : null}
@@ -2664,7 +2690,7 @@ export default function WatchScreen() {
           <Text style={styles.th3EpsText}>EPS: {episodePage * EPISODE_PAGE_SIZE + 1}-{Math.min((episodePage + 1) * EPISODE_PAGE_SIZE, filteredEpisodes.length)}</Text>
           <View style={styles.th3EpSearch}><AppIcon name="magnify" size={14} color={nothing.muted} /><TextInput value={episodeSearch} onChangeText={setEpisodeSearch} placeholder="Ep number" placeholderTextColor={nothing.dim} style={styles.th3EpSearchInput} returnKeyType="done" keyboardType={episodeSearch && /\d/.test(episodeSearch) ? "number-pad" : "default"} /></View>
         </View>
-        {episodeQuery.isPending ? <View style={styles.episodeLoading}><ActivityIndicator color={nothing.white} /><Text style={styles.episodeLoadingText}>LOADING EPISODES</Text></View> : filteredEpisodes.length ? <>
+        {episodeQuery.isPending ? <View style={styles.episodeLoading}><ActivityIndicator color={"#FFFFFF"} /><Text style={styles.episodeLoadingText}>LOADING EPISODES</Text></View> : filteredEpisodes.length ? <>
           <Animated.View style={[styles.episodeSwipeContainer, { transform: [{ translateX: swipeOffsetX }] }]} {...episodeSwipeResponder.panHandlers}>
             <EpisodeGrid episodes={pagedEpisodes} activeEpisode={episode} totalPages={totalEpisodePages} page={safeEpisodePage} onPageChange={setEpisodePage} onSelect={goToEpisode} onInfo={openEpisodeInfo} totalEpisodeCount={filteredEpisodes.length} />
           </Animated.View>
@@ -2727,33 +2753,33 @@ export default function WatchScreen() {
 // ── Styles ──
 const ps = StyleSheet.create({
   videoShellFullscreen: { position: "absolute", zIndex: 50, elevation: 50, top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", aspectRatio: undefined, backgroundColor: "#000000", justifyContent: "center" },
-  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 240, maxWidth: "76%", borderRadius: 4, backgroundColor: "rgba(9,9,9,0.92)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)" },
-  settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.06)" },
-  settingsHeaderText: { color: "#FFF", fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 264, maxWidth: "84%", borderRadius: 18, backgroundColor: "rgba(244,248,255,0.96)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 12 },
+  settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#B8D5F5" },
+  settingsHeaderText: { color: "#142B4B", fontSize: 13, fontWeight: "900", letterSpacing: 0.3 },
   settingsContent: { padding: 8, paddingBottom: 10, gap: 1 },
-  sectionLabel: { color: "#FF4D4D", fontSize: 9, fontWeight: "800", letterSpacing: 0.8, marginTop: 6, marginBottom: 2, textTransform: "uppercase" },
+  sectionLabel: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.8, marginTop: 7, marginBottom: 3, textTransform: "uppercase" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 2 },
-  chip: { minHeight: 26, paddingHorizontal: 8, borderRadius: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "transparent", alignItems: "center", justifyContent: "center" },
-  chipActive: { backgroundColor: nothing.red, borderColor: nothing.red },
-  chipText: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  chip: { minHeight: 30, paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "rgba(255,255,255,0.8)", alignItems: "center", justifyContent: "center" },
+  chipActive: { backgroundColor: "#2878F0", borderColor: "#142B4B" },
+  chipText: { color: "#425B78", fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
   chipTextActive: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
-  emptyLine: { color: "rgba(255,255,255,0.35)", fontSize: 10, fontWeight: "500" },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
-  infoLabel: { color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: "600" },
-  infoValue: { color: "rgba(255,255,255,0.8)", fontSize: 10, fontWeight: "700" },
+  emptyLine: { color: "#71839D", fontSize: 10, fontWeight: "600" },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#DCEBFA" },
+  infoLabel: { color: "#71839D", fontSize: 10, fontWeight: "700" },
+  infoValue: { color: "#142B4B", fontSize: 10, fontWeight: "800" },
   diagnosticLine: { color: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: "600", letterSpacing: 0.3, marginTop: 6 },
 });
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   invalidWrap: { flex: 1, alignItems: "flex-start", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
-  invalidTitle: { color: nothing.white, fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
+  invalidTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
   top: { minHeight: 52, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   closeButton: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: nothing.line, borderRadius: 6 },
   topCopy: { flex: 1, gap: 2 },
-  title: { color: nothing.white, fontSize: 18, fontWeight: "900", lineHeight: 22, letterSpacing: -0.5 },
+  title: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", lineHeight: 22, letterSpacing: -0.5 },
   episodeLabel: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
-  videoShell: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#000000", overflow: "hidden", position: "relative" },
+  videoShell: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#142B4B", overflow: "hidden", position: "relative", borderBottomWidth: 2, borderBottomColor: "#B8D5F5" },
   video: { flex: 1 },
   gestureOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
   embedChrome: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 5, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.55)" },
@@ -2778,26 +2804,26 @@ const styles = StyleSheet.create({
   scrimTopSoft: { position: "absolute", top: 0, left: 0, right: 0, height: 96, backgroundColor: "rgba(0,0,0,0.10)" },
   scrimBottomMain: { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.22)" },
   scrimBottomSoft: { position: "absolute", bottom: 0, left: 0, right: 0, height: 110, backgroundColor: "rgba(0,0,0,0.10)" },
-  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%" },
-  playerTitle: { flex: 1, flexShrink: 1, color: "#FFF", fontSize: 13, fontWeight: "600", marginLeft: 8, marginRight: 6 },
+  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 14, backgroundColor: "rgba(234,244,255,0.88)", borderWidth: 1, borderColor: "rgba(255,255,255,0.85)", elevation: 5 },
+  playerTitle: { flex: 1, flexShrink: 1, color: "#142B4B", fontSize: 13, fontWeight: "800", marginLeft: 8, marginRight: 6 },
   topRightRow: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
-  iconButton: { width: 30, height: 30, padding: 2, justifyContent: "center", alignItems: "center", flexShrink: 0 },
-  iconButtonActive: { backgroundColor: "rgba(255,77,77,0.15)", borderRadius: 4 },
+  iconButton: { width: 34, height: 34, padding: 2, justifyContent: "center", alignItems: "center", flexShrink: 0, borderRadius: 11, backgroundColor: "#2878F0", borderWidth: 1, borderColor: "#FFFFFF", elevation: 2 },
+  iconButtonActive: { backgroundColor: "#78BFFF", borderColor: "#2878F0", borderRadius: 11 },
   orientationBadge: { backgroundColor: "rgba(255,77,77,0.85)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
-  orientationBadgeText: { color: nothing.white, fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
-  subPillBadge: { backgroundColor: nothing.red, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 5, flexShrink: 0 },
-  subPillBadgeText: { color: nothing.black, fontSize: 10, fontWeight: "800", letterSpacing: 0.2, textTransform: "uppercase" },
-  bottomDeck: { gap: 3, width: "100%" },
+  orientationBadgeText: { color: "#FFFFFF", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
+  subPillBadge: { backgroundColor: "#2878F0", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, flexShrink: 0 },
+  subPillBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", letterSpacing: 0.2, textTransform: "uppercase" },
+  bottomDeck: { gap: 5, width: "100%", paddingHorizontal: 9, paddingVertical: 7, borderRadius: 16, backgroundColor: "rgba(20,43,75,0.72)", borderWidth: 1, borderColor: "rgba(234,244,255,0.45)" },
   timelineRow: { flexDirection: "row", alignItems: "center", gap: 4, width: "100%" },
   timeLabel: { color: "#FFF", fontSize: 11, fontWeight: "600", minWidth: 34, textAlign: "center", flexShrink: 0, fontVariant: ["tabular-nums"] },
   progressBarTrack: { flex: 1, height: 16, justifyContent: "center" },
   progressBuffered: { position: "absolute", height: 2, backgroundColor: "rgba(255,255,255,0.45)", borderRadius: 1 },
-  progressPlayed: { position: "absolute", height: 2, backgroundColor: nothing.red, borderRadius: 1 },
+  progressPlayed: { position: "absolute", height: 3, backgroundColor: "#78BFFF", borderRadius: 2 },
   progressTrackThick: { height: 3, borderRadius: 1.5 },
   scrubberKnob: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF", marginLeft: -5, top: 3, elevation: 3 },
   scrubberKnobActive: { width: 14, height: 14, borderRadius: 7, marginLeft: -7, top: 1 },
   dragPreview: { position: "absolute", top: -28, marginLeft: -24, backgroundColor: "rgba(0,0,0,0.85)", borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
-  dragPreviewText: { color: nothing.white, fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  dragPreviewText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actionRail: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", width: "100%" },
   railSide: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
   railSideRight: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, flexShrink: 0 },
@@ -2805,7 +2831,7 @@ const styles = StyleSheet.create({
   railBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   railBtnDisabled: { opacity: 0.35 },
   downloadBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0, gap: 0 },
-  bigPlayButton: { width: 48, height: 48, borderRadius: 24, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", flexShrink: 0, marginHorizontal: 4 },
+  bigPlayButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#78BFFF", borderWidth: 2, borderColor: "#FFFFFF", justifyContent: "center", alignItems: "center", flexShrink: 0, marginHorizontal: 4, elevation: 5 },
   bigPlayButtonFullscreen: { width: 56, height: 56, borderRadius: 28 },
   hudBadge: { position: "absolute", top: 20, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 5, zIndex: 10 },
   hudPill: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 8, zIndex: 10 },
@@ -2829,14 +2855,14 @@ const styles = StyleSheet.create({
   lockedPillArmed: { borderColor: nothing.red },
   bufferingVeil: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", zIndex: 2 },
   lockedText: { color: "#FFF", fontSize: 11, fontWeight: "600" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "rgba(9,9,9,0.96)", borderTopLeftRadius: 2, borderTopRightRadius: 2, padding: 14, gap: 1, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" },
-  modalTitle: { color: "#FFF", fontSize: 12, fontWeight: "800", letterSpacing: 0.3, marginBottom: 4, textTransform: "uppercase" },
-  modalItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
-  modalItemActive: { backgroundColor: "rgba(255,77,77,0.06)" },
-  modalItemText: { color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: "600" },
-  modalItemSub: { color: "rgba(255,255,255,0.4)", fontSize: 10, fontWeight: "600", marginTop: 1 },
-  modalItemTextActive: { color: nothing.red, fontWeight: "700" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(20,43,75,0.30)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: "rgba(244,248,255,0.96)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, gap: 3, borderWidth: 1, borderColor: "#B8D5F5", elevation: 12 },
+  modalTitle: { color: "#142B4B", fontSize: 14, fontWeight: "900", letterSpacing: 0.2, marginBottom: 6, textTransform: "uppercase" },
+  modalItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 9, borderBottomWidth: 1, borderBottomColor: "#DCEBFA", borderRadius: 10 },
+  modalItemActive: { backgroundColor: "#EAF4FF" },
+  modalItemText: { color: "#425B78", fontSize: 13, fontWeight: "700" },
+  modalItemSub: { color: "#71839D", fontSize: 11, fontWeight: "600", marginTop: 2 },
+  modalItemTextActive: { color: "#2878F0", fontWeight: "900" },
   chapterModalSheet: { backgroundColor: "rgba(9,9,9,0.96)", borderTopLeftRadius: 2, borderTopRightRadius: 2, padding: 14, gap: 4, maxHeight: "70%", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" },
   chapterList: { gap: 1 },
   chapterItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
@@ -2847,7 +2873,7 @@ const styles = StyleSheet.create({
   chapterDotActive: { backgroundColor: nothing.red },
   chapterDotPast: { backgroundColor: nothing.green },
   chapterInfo: { gap: 1 },
-  chapterName: { color: nothing.white, fontSize: 11, fontWeight: "700" },
+  chapterName: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
   chapterNameActive: { color: nothing.red },
   chapterTimestamp: { color: nothing.muted, fontSize: 9, fontWeight: "500", fontVariant: ["tabular-nums"] },
   chapterItemRight: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -2858,68 +2884,87 @@ const styles = StyleSheet.create({
   thumbnailLoading: { ...StyleSheet.absoluteFillObject, overflow: "hidden", justifyContent: "flex-end", backgroundColor: "#090909" },
   thumbnailLoadingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.32)" },
   thumbnailLoadingContent: { zIndex: 1, gap: 6, padding: 14, paddingTop: 48, backgroundColor: "rgba(9,9,9,0.68)" },
-  thumbnailPlay: { width: 34, height: 34, alignItems: "center", justifyContent: "center", backgroundColor: nothing.white, borderRadius: 4 },
+  thumbnailPlay: { width: 34, height: 34, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRadius: 4 },
   thumbnailEpisode: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  thumbnailTitle: { color: nothing.white, fontSize: 14, lineHeight: 18, fontWeight: "900" },
+  thumbnailTitle: { color: "#FFFFFF", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   thumbnailStatus: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
   placeholderText: { color: nothing.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   errorText: { color: nothing.red, fontSize: 11, fontWeight: "600", textAlign: "center", paddingHorizontal: 20 },
   playerOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "space-between", padding: 8 },
   pointerBoxNone: { pointerEvents: "box-none" },
   pointerNone: { pointerEvents: "none" },
-  th3Section: { gap: 10 },
-  th3Watching: { fontSize: 16, fontWeight: "900", letterSpacing: -0.4, textAlign: "center", paddingVertical: 10, marginHorizontal: -14, backgroundColor: nothing.surface, borderBottomWidth: 1, borderBottomColor: nothing.line },
-  th3WatchingGreen: { color: nothing.red, fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
-  th3WatchingWhite: { color: nothing.white, fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
-  th3Tabs: { flexDirection: "row", gap: 16, marginHorizontal: 14, borderBottomWidth: 1, borderBottomColor: nothing.line },
+  th3Section: { gap: 12, padding: 15, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#B8D5F5", borderRadius: 22, elevation: 3 },
+  watchAnimeCard: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 17, backgroundColor: "#F4F8FF" },
+  watchAnimePoster: { width: 58, height: 76, borderRadius: 11, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF4FF" },
+  watchAnimeCopy: { flex: 1, gap: 4 },
+  watchAnimeEyebrow: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+  watchAnimeTitle: { color: "#142B4B", fontSize: 17, lineHeight: 21, fontWeight: "900" },
+  watchAnimeEpisode: { color: "#71839D", fontSize: 12, fontWeight: "600" },
+  watchMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 4 },
+  watchMetaBadge: { color: "#2878F0", fontSize: 10, fontWeight: "900", paddingHorizontal: 7, paddingVertical: 4, overflow: "hidden", borderRadius: 7, backgroundColor: "#EAF4FF" },
+  watchGenreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  watchGenreBadge: { color: "#425B78", fontSize: 11, fontWeight: "700", paddingHorizontal: 9, paddingVertical: 6, overflow: "hidden", borderRadius: 9, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
+  watchSynopsis: { gap: 5, padding: 12, borderWidth: 1, borderColor: "#D5E7F9", borderRadius: 14, backgroundColor: "#F4F8FF" },
+  watchSynopsisLabel: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  watchSynopsisText: { color: "#425B78", fontSize: 12, lineHeight: 18 },
+  watchEpisodeNav: { flexDirection: "row", gap: 9 },
+  watchEpisodeButton: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1.5, borderColor: "#2878F0", borderRadius: 13, backgroundColor: "#FFFFFF" },
+  watchEpisodeNext: { backgroundColor: "#2878F0", borderColor: "#142B4B", elevation: 3 },
+  watchEpisodeDisabled: { opacity: 0.38 },
+  watchEpisodeButtonText: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
+  watchEpisodeNextText: { color: "#FFFFFF" },
+  th3Watching: { fontSize: 16, fontWeight: "900", letterSpacing: -0.4, textAlign: "left", paddingVertical: 12, paddingHorizontal: 13, backgroundColor: "#EAF4FF", borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 15 },
+  th3WatchingGreen: { color: "#2878F0", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
+  th3WatchingWhite: { color: "#142B4B", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
+  th3Tabs: { flexDirection: "row", gap: 10, borderBottomWidth: 1, borderBottomColor: "#DCEBFA" },
   th3Tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
-  th3TabActive: { borderBottomColor: nothing.red },
-  th3TabText: { color: nothing.muted, fontSize: 14, fontWeight: "700" },
-  th3TabTextActive: { color: nothing.red, fontWeight: "900" },
+  th3TabActive: { borderBottomColor: "#2878F0" },
+  th3TabText: { color: "#71839D", fontSize: 14, fontWeight: "700" },
+  th3TabTextActive: { color: "#2878F0", fontWeight: "900" },
   th3TabTextEmpty: { color: nothing.dim },
-  th3Servers: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 4, marginHorizontal: 14 },
-  th3Server: { minHeight: 32, paddingHorizontal: 14, justifyContent: "center", borderRadius: 16, borderWidth: 1, borderColor: nothing.line, backgroundColor: nothing.surface },
-  th3ServerActive: { backgroundColor: nothing.red, borderColor: nothing.red },
-  th3ServerText: { color: nothing.muted, fontSize: 12, fontWeight: "700" },
-  th3ServerTextActive: { color: nothing.black, fontWeight: "900" },
+  th3Servers: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 4 },
+  th3Server: { minHeight: 36, paddingHorizontal: 14, justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
+  th3ServerActive: { backgroundColor: "#2878F0", borderColor: "#142B4B", elevation: 3 },
+  th3ServerText: { color: "#71839D", fontSize: 12, fontWeight: "700" },
+  th3ServerTextActive: { color: "#FFFFFF", fontWeight: "900" },
   th3EpHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  th3EpTitle: { color: nothing.white, fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
+  th3EpTitle: { color: "#142B4B", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
   th3EpSearch: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, height: 34, minWidth: 140, borderWidth: 1, borderColor: nothing.line, borderRadius: 8, backgroundColor: nothing.surface },
-  th3EpSearchInput: { flex: 1, color: nothing.white, fontSize: 12, paddingVertical: 0 },
+  th3EpSearchInput: { flex: 1, color: "#142B4B", fontSize: 12, paddingVertical: 0 },
   th3EpsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  th3EpsText: { color: nothing.red, fontFamily: nothing.mono, fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
+  th3EpsText: { color: "#2878F0", fontFamily: nothing.mono, fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
   th3Grid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  th3EpBtn: { width: 56, height: 56, alignItems: "center", justifyContent: "center", borderRadius: 8, borderWidth: 1, borderColor: nothing.line, backgroundColor: nothing.surface, overflow: "hidden" },
-  th3EpBtnActive: { backgroundColor: nothing.red, borderColor: nothing.red },
-  th3EpBtnText: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 13, fontWeight: "800", zIndex: 1 },
-  th3EpBtnTextActive: { color: nothing.black, fontWeight: "900" },
+  th3EpBtn: { width: 56, height: 56, alignItems: "center", justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF", overflow: "hidden" },
+  th3EpBtnActive: { backgroundColor: "#78BFFF", borderColor: "#142B4B", borderWidth: 2, elevation: 3 },
+  th3EpBtnText: { color: "#71839D", fontFamily: nothing.mono, fontSize: 13, fontWeight: "800", zIndex: 1 },
+  th3EpBtnTextActive: { color: "#142B4B", fontWeight: "900" },
   th3EpBtnFiller: { color: nothing.muted },
   resumeBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: "rgba(0,0,0,0.7)" },
-  resumeBtnText: { color: nothing.white, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+  resumeBtnText: { color: "#FFFFFF", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
   lockedRow: { flex: 1, alignItems: "flex-end", justifyContent: "center" },
   errorBtnRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   errorAction: { paddingHorizontal: 12, paddingTop: 10 },
   errorCard: { gap: 6, padding: 12 },
   errorCopy: { color: nothing.muted, fontSize: 12, lineHeight: 16 },
-  scroll: { padding: 14, gap: 12 },
+  scroll: { padding: 14, gap: 14, backgroundColor: "#F4F8FF", paddingBottom: 36 },
   episodeLoading: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 7, borderTopWidth: 1, borderTopColor: nothing.line },
   episodeLoadingText: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
   episodePager: { flexDirection: "row", alignItems: "center", gap: 6 },
-  episodePagerButton: { flex: 1, minHeight: 32, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3 },
+  episodePagerButton: { flex: 1, minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 11, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF4FF" },
   episodePagerDisabled: { opacity: 0.3 },
-  episodePagerText: { color: nothing.white, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
-  episodePagerIndicator: { color: nothing.dim, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
-  emptyEpisodeText: { color: nothing.muted, paddingVertical: 14, textAlign: "center", fontSize: 12 },
+  episodePagerText: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.3 },
+  episodePagerIndicator: { color: "#71839D", fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
+  emptyEpisodeText: { color: "#71839D", paddingVertical: 14, textAlign: "center", fontSize: 12 },
   swipeHintRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, marginBottom: 2 },
   swipeHintText: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
   episodeSwipeContainer: { overflow: "hidden" },
-  watchCommunitySection: { gap: 10, paddingTop: 2 },
-  ratingRow: { gap: 5, paddingVertical: 8, borderTopWidth: 1, borderBottomWidth: 1, borderColor: nothing.line },
-  ratingPrompt: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 9, fontWeight: "900", letterSpacing: 0.4, textTransform: "uppercase" },
+  watchCommunitySection: { gap: 12, padding: 15, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#B8D5F5", borderRadius: 22 },
+  ratingRow: { gap: 7, paddingVertical: 10, paddingHorizontal: 11, borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 14, backgroundColor: "#EAF4FF" },
+  ratingPrompt: { color: "#71839D", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.4, textTransform: "uppercase" },
   ratingChoices: { flexDirection: "row", gap: 3 },
-  ratingChoice: { flex: 1, height: 28, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", borderRadius: 3 },
-  ratingChoiceActive: { backgroundColor: nothing.red, borderColor: nothing.red },
-  ratingChoiceText: { color: "rgba(255,255,255,0.4)", fontFamily: nothing.mono, fontSize: 9, fontWeight: "900" },
+  ratingChoice: { flex: 1, height: 32, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 8, backgroundColor: "#FFFFFF" },
+  ratingChoiceActive: { backgroundColor: "#2878F0", borderColor: "#142B4B" },
+  ratingChoiceText: { color: "#71839D", fontFamily: nothing.mono, fontSize: 9, fontWeight: "900" },
   ratingChoiceTextActive: { color: "#FFFFFF" },
   languageRow: { flexDirection: "row", gap: 4 },
   language: { minWidth: 48, minHeight: 28, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, borderRadius: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "transparent" },
@@ -2929,7 +2974,7 @@ const styles = StyleSheet.create({
   languageTextActive: { color: nothing.red },
   providerDiscovery: { width: "100%", maxWidth: 260, alignItems: "center", gap: 10 },
   providerDiscoveryCopy: { alignItems: "center", gap: 3 },
-  providerDiscoveryTitle: { color: nothing.white, fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  providerDiscoveryTitle: { color: "#FFFFFF", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
   providerDiscoveryDetail: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
 });
 
@@ -2957,14 +3002,14 @@ const EpisodeGrid = memo(function EpisodeGrid({ episodes, activeEpisode, totalPa
           </Pressable>;
         }}
       />
-      {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={nothing.white} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={nothing.white} /></Pressable></View> : null}
+      {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={"#FFFFFF"} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={"#FFFFFF"} /></Pressable></View> : null}
     </>;
   }
   return <>
     <View style={styles.th3Grid}>{episodes.map((item) => { const active = item.number === activeEpisode; return <Pressable key={item.number} accessibilityRole="button" accessibilityLabel={`Episode ${item.number}${item.title ? `: ${item.title}` : ""}`} accessibilityHint={active ? "Currently playing" : "Double tap to play this episode"} onPress={() => onSelect(item.number)} onLongPress={() => onInfo(item.number)} style={[styles.th3EpBtn, active && styles.th3EpBtnActive]}>
       <Text style={[styles.th3EpBtnText, active ? styles.th3EpBtnTextActive : item.isFiller ? styles.th3EpBtnFiller : null]}>{item.number}</Text>
     </Pressable>; })}</View>
-    {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={nothing.white} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={nothing.white} /></Pressable></View> : null}
+    {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={"#FFFFFF"} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={"#FFFFFF"} /></Pressable></View> : null}
   </>;
 });
 

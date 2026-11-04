@@ -7,7 +7,7 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 export function ProviderIcon({ provider, size = 22 }: { provider?: string; size?: number }) {
   const key = String(provider || "").trim().toLowerCase();
-  const color = PROVIDER_COLORS[key] || "#1677FF";
+  const color = PROVIDER_COLORS[key] || "#4BA3E8";
 
   return (
     <View style={[styles.icon, { width: size, height: size, borderRadius: size * 0.28, backgroundColor: color }]}>

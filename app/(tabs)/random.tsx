@@ -181,7 +181,7 @@ export default function RandomScreen() {
 const styles = StyleSheet.create({
   wrapper: { gap: 18 },
   art: { height: 460, marginHorizontal: -18, overflow: "hidden", backgroundColor: nothing.raised },
-  artFallback: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "#242422" },
+  artFallback: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", backgroundColor: "#DDEEFF" },
   fallbackInitial: { color: nothing.dim, fontSize: 100, fontWeight: "900" },
   artMask: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.17)" },
   content: { gap: 11 },
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   open: {
     minHeight: 52, paddingHorizontal: 16, borderRadius: 6,
     alignItems: "center", justifyContent: "space-between",
-    flexDirection: "row", backgroundColor: nothing.white,
+    flexDirection: "row", backgroundColor: "#FFFFFF",
   },
   openText: { color: nothing.black, fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   again: { minHeight: 36, alignItems: "flex-start", justifyContent: "center" },

@@ -37,9 +37,9 @@ function LibrarySettings() {
             pressed && styles.pressed,
           ]}
         >
-          <AppIcon name={item.icon} size={18} color="#1677FF" />
+          <AppIcon name={item.icon} size={18} color="#4BA3E8" />
           <Text style={styles.settingsLabel}>{item.label}</Text>
-          <AppIcon name="chevron-right" size={18} color="#7185A5" />
+          <AppIcon name="chevron-right" size={18} color="#71869A" />
         </Pressable>
       ))}
     </View>
@@ -87,7 +87,7 @@ export default function LibraryTabScreen() {
           onPress={() => router.push("/search" as never)}
           style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
         >
-          <AppIcon name="magnify" size={20} color={"#101828"} />
+          <AppIcon name="magnify" size={20} color={"#172B3A"} />
         </Pressable>
       </View>
 
@@ -100,7 +100,7 @@ export default function LibraryTabScreen() {
           ]}
         >
           <View style={styles.collectionIcon}>
-            <AppIcon name="history" size={18} color="#1677FF" />
+            <AppIcon name="history" size={18} color="#4BA3E8" />
           </View>
           <Text style={styles.collectionTitle}>Watch History</Text>
           <Text style={styles.collectionCount}>
@@ -115,7 +115,7 @@ export default function LibraryTabScreen() {
           ]}
         >
           <View style={styles.collectionIcon}>
-            <AppIcon name="bookmark" size={18} color="#1677FF" />
+            <AppIcon name="bookmark" size={18} color="#4BA3E8" />
           </View>
           <Text style={styles.collectionTitle}>My List</Text>
           <Text style={styles.collectionCount}>
@@ -130,7 +130,7 @@ export default function LibraryTabScreen() {
           ]}
         >
           <View style={styles.collectionIcon}>
-            <AppIcon name="play-circle" size={18} color="#1677FF" />
+            <AppIcon name="play-circle" size={18} color="#4BA3E8" />
           </View>
           <Text style={styles.collectionTitle}>Continue</Text>
           <Text style={styles.collectionCount}>
@@ -210,7 +210,7 @@ export default function LibraryTabScreen() {
                     {item.episodes ? ` · ${item.episodes} EP` : ""}
                   </Text>
                 </View>
-                <AppIcon name="chevron-right" size={18} color={"#7185A5"} />
+                <AppIcon name="chevron-right" size={18} color={"#71869A"} />
               </Pressable>
             ) : (
               <Pressable
@@ -272,7 +272,7 @@ export default function LibraryTabScreen() {
                     />
                   </View>
                 </View>
-                <AppIcon name="chevron-right" size={18} color={"#7185A5"} />
+                <AppIcon name="chevron-right" size={18} color={"#71869A"} />
               </Pressable>
             )
           }
@@ -292,12 +292,12 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   pageTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 25,
     fontWeight: "900",
     letterSpacing: -0.5,
   },
-  pageSubtitle: { color: "#7185A5", fontSize: 13, marginTop: 2 },
+  pageSubtitle: { color: "#71869A", fontSize: 13, marginTop: 2 },
   collectionCards: { flexDirection: "row", gap: 8, paddingVertical: 9 },
   collectionCard: {
     flex: 1,
@@ -306,31 +306,31 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#D9E7F8",
-    shadowColor: "#142B4B",
+    borderColor: "#D5E7F5",
+    shadowColor: "#172B3A",
     shadowOpacity: 0.05,
     shadowRadius: 9,
     elevation: 2,
   },
-  collectionCardActive: { borderColor: "#1677FF", backgroundColor: "#F6FAFF" },
+  collectionCardActive: { borderColor: "#4BA3E8", backgroundColor: "#F6FAFF" },
   collectionIcon: {
     width: 34,
     height: 34,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
     marginBottom: 7,
   },
-  collectionTitle: { color: "#101828", fontSize: 11, fontWeight: "800" },
-  collectionCount: { color: "#7185A5", fontSize: 10, marginTop: 2 },
+  collectionTitle: { color: "#172B3A", fontSize: 11, fontWeight: "800" },
+  collectionCount: { color: "#71869A", fontSize: 10, marginTop: 2 },
   iconBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   tabs: {
     flexDirection: "row",
@@ -341,11 +341,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 12,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   tabActive: { backgroundColor: nothing.primary },
-  tabText: { color: "#526985", fontWeight: "700", fontSize: 12 },
-  tabTextActive: { color: "#101828" },
+  tabText: { color: "#71869A", fontWeight: "700", fontSize: 12 },
+  tabTextActive: { color: "#172B3A" },
   list: { paddingTop: 4, paddingBottom: 112 },
   row: {
     flexDirection: "row",
@@ -353,31 +353,31 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
   thumb: {
     width: 48,
     height: 68,
     borderRadius: 10,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   thumbWide: {
     width: 96,
     height: 54,
     borderRadius: 10,
-    backgroundColor: "#EAF3FF",
+    backgroundColor: "#EAF5FF",
   },
   rowBody: { flex: 1, gap: 4 },
   rowTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 14,
     fontWeight: "700",
     lineHeight: 18,
   },
-  rowMeta: { color: "#7185A5", fontSize: 12, fontWeight: "600" },
+  rowMeta: { color: "#71869A", fontSize: 12, fontWeight: "600" },
   progressTrack: {
     height: 3,
-    backgroundColor: "#D9E7F8",
+    backgroundColor: "#D5E7F5",
     borderRadius: 2,
     overflow: "hidden",
     marginTop: 2,
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
   librarySettings: { gap: 2, paddingBottom: 14 },
   settingsTitle: {
     marginBottom: 6,
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 17,
     fontWeight: "900",
   },
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
   },
-  settingsLabel: { flex: 1, color: "#142B4B", fontSize: 13, fontWeight: "700" },
+  settingsLabel: { flex: 1, color: "#172B3A", fontSize: 13, fontWeight: "700" },
 });

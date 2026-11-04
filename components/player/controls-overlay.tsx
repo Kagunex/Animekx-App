@@ -56,7 +56,7 @@ export function ControlsOverlay({
     <Animated.View pointerEvents={visible ? "auto" : "none"} style={styles.container}>
       <Animated.View style={[styles.topBar, { opacity: topOpacity }]}>
         <Pressable onPress={onBack} style={styles.iconBtn}>
-          <AppIcon name="arrow-left" size={22} color={nothing.white} />
+          <AppIcon name="arrow-left" size={22} color={"#FFFFFF"} />
         </Pressable>
         <View style={styles.topCenter}>
           <Text style={styles.title} numberOfLines={1}>{title || ""}</Text>
@@ -65,21 +65,21 @@ export function ControlsOverlay({
         <View style={styles.topRight}>
           {speed !== 1 ? <View style={styles.speedBadge}><Text style={styles.speedText}>{speed}×</Text></View> : null}
           <Pressable onPress={onLock} style={styles.iconBtn}>
-            <AppIcon name="lock-open-outline" size={20} color={nothing.white} />
+            <AppIcon name="lock-open-outline" size={20} color={"#FFFFFF"} />
           </Pressable>
         </View>
       </Animated.View>
 
       <Animated.View style={[styles.centerControls, { opacity: bottomOpacity, transform: [{ scale: centerScale }] }]}>
         <Pressable onPress={onSeekBackward} style={styles.seekBtn}>
-          <AppIcon name="rewind-10" size={32} color={nothing.white} />
+          <AppIcon name="rewind-10" size={32} color={"#FFFFFF"} />
           <Text style={styles.seekBtnText}>10</Text>
         </Pressable>
         <Pressable onPress={onPlayPause} style={styles.playBtn}>
           <AppIcon name={isPlaying ? "pause" : "play"} size={36} color={nothing.black} />
         </Pressable>
         <Pressable onPress={onSeekForward} style={styles.seekBtn}>
-          <AppIcon name="fast-forward-10" size={32} color={nothing.white} />
+          <AppIcon name="fast-forward-10" size={32} color={"#FFFFFF"} />
           <Text style={styles.seekBtnText}>10</Text>
         </Pressable>
       </Animated.View>
@@ -94,17 +94,17 @@ export function ControlsOverlay({
 
       <Animated.View style={[styles.bottomActions, { opacity: bottomOpacity }]}>
         <Pressable onPress={onSpeed} style={styles.actionBtn}>
-          <AppIcon name="play-speed" size={20} color={nothing.white} />
+          <AppIcon name="play-speed" size={20} color={"#FFFFFF"} />
         </Pressable>
         <Pressable onPress={onSubtitles} style={styles.actionBtn}>
-          <AppIcon name="subtitles-outline" size={20} color={nothing.white} />
+          <AppIcon name="subtitles-outline" size={20} color={"#FFFFFF"} />
         </Pressable>
         <Pressable onPress={onSettings} style={styles.actionBtn}>
-          <AppIcon name="cog-outline" size={20} color={nothing.white} />
+          <AppIcon name="cog-outline" size={20} color={"#FFFFFF"} />
         </Pressable>
         <View style={{ flex: 1 }} />
         <Pressable onPress={onFullscreen} style={styles.actionBtn}>
-          <AppIcon name={isFullscreen ? "fullscreen-exit" : "fullscreen"} size={20} color={nothing.white} />
+          <AppIcon name={isFullscreen ? "fullscreen-exit" : "fullscreen"} size={20} color={"#FFFFFF"} />
         </Pressable>
       </Animated.View>
     </Animated.View>
@@ -116,17 +116,17 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: "row", alignItems: "center", paddingTop: 8, paddingHorizontal: 12, paddingBottom: 16, backgroundColor: "rgba(0,0,0,0.6)" },
   topCenter: { flex: 1, alignItems: "center", gap: 2 },
   topRight: { flexDirection: "row", alignItems: "center", gap: 4 },
-  title: { color: nothing.white, fontSize: 14, fontWeight: "800" },
+  title: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
   subtitle: { color: nothing.muted, fontSize: 10, fontFamily: nothing.mono, fontWeight: "700" },
   iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   speedBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: nothing.red },
-  speedText: { color: nothing.white, fontSize: 10, fontWeight: "900" },
+  speedText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900" },
   centerControls: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 32 },
   seekBtn: { alignItems: "center", justifyContent: "center" },
-  seekBtnText: { color: nothing.white, fontSize: 9, fontWeight: "800", marginTop: -2 },
-  playBtn: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: nothing.white },
+  seekBtnText: { color: "#FFFFFF", fontSize: 9, fontWeight: "800", marginTop: -2 },
+  playBtn: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF" },
   bottomBar: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingBottom: 8, backgroundColor: "rgba(0,0,0,0.6)" },
-  timeText: { color: nothing.white, fontSize: 11, fontFamily: nothing.mono, fontWeight: "800", minWidth: 42, textAlign: "center" },
+  timeText: { color: "#FFFFFF", fontSize: 11, fontFamily: nothing.mono, fontWeight: "800", minWidth: 42, textAlign: "center" },
   progressTrack: { flex: 1, height: 3, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 2 },
   progressFill: { height: "100%", backgroundColor: nothing.red, borderRadius: 2 },
   bottomActions: { flexDirection: "row", alignItems: "center", gap: 0, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 4, backgroundColor: "rgba(0,0,0,0.6)" },

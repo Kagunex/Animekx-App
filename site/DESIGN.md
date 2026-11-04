@@ -8,9 +8,9 @@ The Pages site is the public, browser-native counterpart to the Android app. It 
 
 | Surface | Purpose | Primary action |
 | --- | --- | --- |
-| Release banner + hero | Introduces the current stable release, package name (`aniraku.anime.app`), and Android 9+ compatibility. | Download the current APK or read release notes. |
+| Release banner + hero | Introduces the current stable release, package name (`com.animekz.app`), and Android 9+ compatibility. | Download the current APK or read release notes. |
 | Architecture download grid | Offers one APK per device class: `arm64`, `arm32`, and `universal` (contains all architectures). | Download the matching APK from the named GitHub release. |
-| Install sheet | Explains direct installation and the required legacy-package removal (`aniraku.anine.app` must be uninstalled first). | Open the GitHub release. |
+| Install sheet | Explains direct installation and that older builds may need removal before installing `com.animekz.app`. | Open the GitHub release. |
 | Native product rail | Shows real captures: Home, Catalog, Watch, Watch player, Random, and Anime detail. | Inspect a selected capture. |
 | Playback / Watch section | Explains the native player surface, source console, and recovery states. | Read the playback notes. |
 | Release archive | Lists past releases with version, date, and per-arch download links. | Download an older build. |
@@ -30,7 +30,7 @@ The palette is fixed to `#090909` black, `#141414` surface, `#1C1C1C` raised, `#
 
 - The site uses only committed real app captures from `site/assets/screens/` and local source-controlled visual assets. No generated imagery, no mislabeled states.
 - Release actions always target the named GitHub release (`https://github.com/Aniraku/Aniraku-App/releases/download/vX.Y.Z/aniraku-vX.Y.Z-<arch>.apk`). The `universal` APK contains all architectures.
-- The package-migration warning (uninstall legacy `aniraku.anine.app`) and Android 9+ compatibility stay visible before the visitor scrolls.
+- The package-migration warning (older builds may need removal) and Android 9+ compatibility stay visible before the visitor scrolls.
 - Support copy names only live routes: Patreon and Binance Pay. Removed routes (e.g. USDT) must not reappear in copy or QR assets served by the page.
 - The docs grid must mirror the repo: same eight documents, same files on `main`. Never point it at a separate wiki or subdomain that can rot.
 - The archive shows the latest release expanded, 4 recent releases compact, and collapses the rest behind the toggle. Compact rows link to the GitHub release page (notes + all APKs), never to a single presumed APK.

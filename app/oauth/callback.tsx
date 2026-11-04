@@ -221,9 +221,9 @@ export default function OAuthCallback() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#07080D" },
-  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 20, backgroundColor: "#07080D" },
+  safeArea: { flex: 1, backgroundColor: "#F5FAFF" },
+  container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 20, backgroundColor: "#F5FAFF" },
   message: { color: "#F6F6F2", fontSize: 16, lineHeight: 24, textAlign: "center" },
   processingMessage: { marginTop: 16 },
-  errorTitle: { marginBottom: 8, color: "#1677FF", fontSize: 20, fontWeight: "700", lineHeight: 28, textAlign: "center" },
+  errorTitle: { marginBottom: 8, color: "#4BA3E8", fontSize: 20, fontWeight: "700", lineHeight: 28, textAlign: "center" },
 });

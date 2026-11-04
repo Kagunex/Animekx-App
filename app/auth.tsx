@@ -336,7 +336,7 @@ export default function AuthScreen() {
                 {error ? <Signal label={error} tone="signal" /> : null}
                 {message ? <Signal label={message} tone="live" /> : null}
                 {busy ? (
-                  <ActivityIndicator color="#1677FF" />
+                  <ActivityIndicator color="#4BA3E8" />
                 ) : (
                   <NothingButton
                     label={action}
@@ -380,68 +380,68 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   close: {
-    color: "#7185A5",
+    color: "#71869A",
     fontWeight: "800",
     fontSize: 11,
     letterSpacing: 1,
   },
   body: { flex: 1, justifyContent: "center", paddingHorizontal: 20, gap: 18 },
   heading: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 34,
     fontWeight: "900",
     letterSpacing: -1,
   },
-  lead: { color: "#7185A5", fontSize: 14, lineHeight: 21 },
+  lead: { color: "#71869A", fontSize: 14, lineHeight: 21 },
   form: {
     padding: 16,
     gap: 12,
     backgroundColor: "#FFFFFF",
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     borderRadius: 20,
   },
   input: {
     minHeight: 52,
-    color: "#101828",
+    color: "#172B3A",
     borderBottomWidth: 1,
-    borderBottomColor: "#D9E7F8",
+    borderBottomColor: "#D5E7F5",
     fontSize: 16,
   },
-  usernameState: { color: "#7185A5", fontSize: 10, letterSpacing: 0.5 },
-  available: { color: "#1677FF" },
+  usernameState: { color: "#71869A", fontSize: 10, letterSpacing: 0.5 },
+  available: { color: "#4BA3E8" },
   taken: { color: "#CF3347" },
   switches: { flexDirection: "row", justifyContent: "space-between" },
-  link: { color: "#142B4B", fontWeight: "700", fontSize: 13 },
+  link: { color: "#172B3A", fontWeight: "700", fontSize: 13 },
   verificationCard: {
     padding: 20,
     gap: 15,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
   },
   verificationMark: { alignItems: "flex-start" },
   verificationTitle: {
-    color: "#101828",
+    color: "#172B3A",
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 0.4,
   },
-  verificationLead: { color: "#7185A5", fontSize: 14, lineHeight: 21 },
+  verificationLead: { color: "#71869A", fontSize: 14, lineHeight: 21 },
   steps: {
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: "#D9E7F8",
+    borderColor: "#D5E7F5",
     paddingVertical: 12,
     gap: 8,
   },
   step: {
-    color: "#142B4B",
+    color: "#172B3A",
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.35,
   },
   changeEmail: {
-    color: "#7185A5",
+    color: "#71869A",
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.7,

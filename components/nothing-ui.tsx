@@ -9,26 +9,27 @@ import {
   type ViewStyle,
 } from "react-native";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import { AppIcon } from "@/components/app-icon";
 import { AnimeKzLogoMark } from "@/components/animekz-logo";
 import { useTheme, lightColors, darkColors } from "@/providers/theme-provider";
 
 /** Animekz blue entertainment design tokens */
 export const nothing = {
-  black: "#071426",
-  surface: "#10223B",
-  raised: "#172D4B",
-  elevated: "#203957",
-  line: "#294361",
-  white: "#FFFFFF",
-  muted: "#A8BBD4",
-  dim: "#7890AC",
+  black: "#172B3A",
+  surface: "#FFFFFF",
+  raised: "#EAF5FF",
+  elevated: "#DCEEFF",
+  line: "#263746",
+  white: "#172B3A",
+  muted: "#71869A",
+  dim: "#8CA0B1",
   /** Blue brand accent */
-  red: "#1677FF",
-  primary: "#1677FF",
-  primaryDark: "#075BCB",
-  accent: "#73B8FF",
-  cyan: "#73B8FF",
+  red: "#4BA3E8",
+  primary: "#4BA3E8",
+  primaryDark: "#287DBB",
+  accent: "#8CCFFF",
+  cyan: "#4BA3E8",
   green: "#35D07F",
   error: "#FF4D5D",
   font: "SpaceGrotesk-Regular",
@@ -58,7 +59,7 @@ export function useThemeColors() {
     red: c.accent,
     primary: c.accent,
     green: isDark ? "#48D597" : "#2E9E5A",
-    cyan: isDark ? "#73B8FF" : "#1677FF",
+    cyan: isDark ? "#8CCFFF" : "#4BA3E8",
     card: c.card,
     cardBorder: c.cardBorder,
   };
@@ -107,6 +108,32 @@ export function NothingCard({
   style?: StyleProp<ViewStyle>;
 }) {
   return <View style={[styles.card, style]}>{children}</View>;
+}
+
+/** Translucent glass panel for navigation, sheets, and floating controls. */
+export function GlassSurface({
+  children,
+  style,
+  intensity = 42,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  intensity?: number;
+}) {
+  return (
+    <View style={[styles.glassSurface, style]}>
+      <BlurView
+        pointerEvents="none"
+        intensity={intensity}
+        tint="light"
+        experimentalBlurMethod="dimezisBlurView"
+        style={StyleSheet.absoluteFill}
+      />
+      <View pointerEvents="none" style={styles.glassTint} />
+      <View pointerEvents="none" style={styles.glassReflection} />
+      {children}
+    </View>
+  );
 }
 
 export function NothingButton({
@@ -191,9 +218,38 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: nothing.surface,
     borderWidth: 1,
-    borderColor: nothing.line,
-    borderRadius: 16,
+    borderColor: "rgba(38,55,70,0.22)",
+    borderRadius: 20,
     overflow: "hidden",
+    shadowColor: "#263746",
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 0,
+    elevation: 2,
+  },
+  glassSurface: {
+    overflow: "hidden",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "rgba(255,255,255,0.42)",
+    shadowColor: "#263746",
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 9,
+  },
+  glassTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255,255,255,0.22)",
+  },
+  glassReflection: {
+    position: "absolute",
+    top: 0,
+    left: 18,
+    right: 18,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.9)",
   },
   button: {
     alignItems: "center",
@@ -205,10 +261,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: nothing.red,
-    borderColor: nothing.red,
+    borderColor: "#263746",
+    borderBottomWidth: 3,
   },
   outlineButton: {
-    backgroundColor: "transparent",
+    backgroundColor: "rgba(255,255,255,0.65)",
     borderColor: nothing.line,
   },
   dangerButton: {
@@ -222,8 +279,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.2,
   },
-  primaryButtonText: { color: nothing.white },
-  outlineButtonText: { color: nothing.white },
+  primaryButtonText: { color: "#172B3A" },
+  outlineButtonText: { color: "#172B3A" },
   signalRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   signalDot: { width: 7, height: 7, borderRadius: 4 },
   signalText: { fontSize: 10, fontWeight: "700", letterSpacing: 1 },

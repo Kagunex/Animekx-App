@@ -35,7 +35,7 @@ const env = {
   appSlug: "aniraku",
   scheme: "aniraku",
   iosBundleId: "tech.aniraku.app",
-  androidPackage: "aniraku.anime.app",
+  androidPackage: "com.animekz.app",
   easProjectId: "e96fc02e-d968-4f13-a688-0d553d855df7",
 };
 

@@ -4,26 +4,26 @@
 
 - **Name:** Animekz
 - **Tagline:** Premium Anime Streaming
-- **Identity:** Dark cinematic streaming — Netflix-style UX, original Animekz brand
+- **Identity:** Light blue streaming — Neo-Brutalist details, Bento layouts, restrained Liquid Glass
 
 ## Color tokens (reference-aligned)
 
 | Token | Value |
 |---|---|
-| Primary | `#FF6A00` |
-| Secondary | `#FFA726` |
-| Background | `#0B0F14` |
-| Surface | `#0F141C` |
-| Raised / Card | `#141A22` |
-| Elevated | `#1A222D` |
-| Text | `#FFFFFF` |
-| Secondary text | `#A0A7B3` |
-| Muted | `#6B7380` |
-| Divider | `#243040` |
+| Primary | `#8CCFFF` |
+| Secondary | `#FFFFFF` |
+| Accent | `#4BA3E8` |
+| Background | `#F5FAFF` |
+| Surface | `#FFFFFF` |
+| Soft Blue | `#B9E2FF` |
+| Glass Surface | `rgba(255,255,255,0.65)` |
+| Border | `#263746` |
+| Text | `#172B3A` |
+| Secondary text | `#71869A` |
 | Error | `#FF4D5D` |
 | Success | `#35D07F` |
 
-Orange only for: CTA, active nav, selected episode, progress, rating badge, focus.
+Blue marks actions, active navigation, selected episodes, progress and focus. Keep cards mostly white with pale blue supporting surfaces.
 
 ## Typography
 
@@ -36,13 +36,13 @@ Space Grotesk
 
 ## Navigation
 
-Floating pill bottom tabs: Beranda · Anime · Jadwal · Library · Profil  
-Active: orange + soft pill glow  
+Floating glass pill bottom tabs: Home · Explore · Discover · My List · Profile
+Active: blue selected state with a clear pill indicator
 Content bottom padding ≥ 120
 
 ## Radius
 
-- Posters / cards: 14
+- Posters: 14; cards: 20
 - Buttons: 14
 - Tab bar: 24
 - Chips: 8–12
@@ -52,10 +52,11 @@ Content bottom padding ≥ 120
 
 1. Preserve all API, player, watch progress, library, auth logic.
 2. No fake anime data.
-3. Package ID unchanged (`aniraku.anime.app`).
+3. Android package ID is `com.animekz.app`; EAS project identity and existing deep-link scheme remain unchanged.
 4. Performance: FlatList, skeleton, light press feedback.
 5. Safe areas, no horizontal overflow.
 6. User-facing brand: **Animekz** only (never Aniraku in UI).
+7. Use firm outlines and offset shadows selectively; keep glass effects translucent and readable.
 
 ## Screens
 

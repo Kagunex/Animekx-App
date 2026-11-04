@@ -3,7 +3,7 @@ import { ActivityIndicator, AppState, Modal, Pressable, StyleSheet, Text, View }
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { AppIcon } from "@/components/app-icon";
-import { nothing } from "@/components/nothing-ui";
+import { GlassSurface, nothing } from "@/components/nothing-ui";
 import { checkForAnimeKxUpdate, updateDismissalKey, type AppRelease } from "@/lib/app-update";
 import { downloadAndInstallAnimeKxUpdate } from "@/lib/android-app-installer";
 
@@ -52,7 +52,8 @@ export function AppUpdatePrompt() {
   return (
     <Modal transparent visible={Boolean(release)} animationType="fade" onRequestClose={() => void dismiss()}>
       <View style={styles.backdrop}>
-        <View style={styles.sheet} accessibilityViewIsModal>
+        <GlassSurface style={styles.sheet} intensity={58}>
+          <View accessibilityViewIsModal style={styles.sheetContent}>
           <View style={styles.header}>
             <View style={styles.badge}><Text style={styles.badgeText}>UPDATE</Text></View>
             <Pressable onPress={() => void dismiss()} accessibilityRole="button" accessibilityLabel="Dismiss update" hitSlop={8} style={styles.close}><AppIcon name="close" size={16} color={nothing.muted} /></Pressable>
@@ -68,7 +69,8 @@ export function AppUpdatePrompt() {
               <Text style={styles.laterText}>LATER</Text>
             </Pressable>
           </View>
-        </View>
+          </View>
+        </GlassSurface>
       </View>
     </Modal>
   );
@@ -76,7 +78,8 @@ export function AppUpdatePrompt() {
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.7)", padding: 16 },
-  sheet: { backgroundColor: nothing.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 12, borderWidth: 1, borderColor: nothing.line },
+  sheet: { borderRadius: 24, borderWidth: 1.5, borderColor: "rgba(38,55,70,0.22)" },
+  sheetContent: { padding: 20, gap: 12 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   badge: { backgroundColor: nothing.red, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4 },
   badgeText: { color: nothing.black, fontFamily: "SpaceGrotesk-SemiBold", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
@@ -85,7 +88,7 @@ const styles = StyleSheet.create({
   subtitle: { color: nothing.muted, fontFamily: "SpaceGrotesk-Regular", fontSize: 13, lineHeight: 18 },
   status: { color: nothing.dim, fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
   actions: { flexDirection: "row", gap: 10, marginTop: 4 },
-  install: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", backgroundColor: nothing.white, borderRadius: 8 },
+  install: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", backgroundColor: "#4BA3E8", borderRadius: 8 },
   installText: { color: nothing.black, fontFamily: "SpaceGrotesk-SemiBold", fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
   later: { minWidth: 80, minHeight: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: nothing.line, borderRadius: 8 },
   laterText: { color: nothing.muted, fontFamily: "SpaceGrotesk-Medium", fontSize: 12, fontWeight: "700", letterSpacing: 0.3 },

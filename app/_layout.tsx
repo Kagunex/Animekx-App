@@ -38,7 +38,7 @@ function StartupBrand() {
     <View
       style={{
         flex: 1,
-        backgroundColor: "#071426",
+        backgroundColor: "#F5FAFF",
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
@@ -50,7 +50,7 @@ function StartupBrand() {
           width: 300,
           height: 300,
           borderRadius: 150,
-          backgroundColor: "#10223B",
+          backgroundColor: "#B9E2FF",
           top: -170,
           right: -120,
         }}
@@ -60,7 +60,7 @@ function StartupBrand() {
           position: "absolute",
           width: 220,
           height: 6,
-          backgroundColor: "#1677FF",
+          backgroundColor: "#4BA3E8",
           opacity: 0.18,
           transform: [{ rotate: "-38deg" }],
           bottom: 110,
@@ -122,7 +122,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    void SystemUI.setBackgroundColorAsync(nothing.black).catch(() => {});
+    void SystemUI.setBackgroundColorAsync("#F5FAFF").catch(() => {});
   }, []);
 
   // Render a real native-sized view while fonts load. This follows the
@@ -131,25 +131,25 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <GestureHandlerRootView
-        style={{ flex: 1, backgroundColor: nothing.black }}
+        style={{ flex: 1, backgroundColor: "#F5FAFF" }}
       >
-        <StatusBar style="light" translucent backgroundColor="transparent" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
         <StartupBrand />
       </GestureHandlerRootView>
     );
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: nothing.black }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#F5FAFF" }}>
       <SafeAreaProvider>
         <AppProviders>
           <StartupPrefetcher />
-          <StatusBar style="light" translucent backgroundColor="transparent" />
+          <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Stack
             screenOptions={{
               headerShown: false,
               animation: "fade",
-              contentStyle: { backgroundColor: nothing.black },
+              contentStyle: { backgroundColor: "#F5FAFF" },
             }}
           >
             <Stack.Screen name="(tabs)" />
@@ -188,10 +188,10 @@ export function ErrorBoundary({
         gap: 14,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: nothing.black,
+        backgroundColor: "#F5FAFF",
       }}
     >
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <Text
         style={{
           color: nothing.red,
@@ -230,11 +230,11 @@ export function ErrorBoundary({
           paddingHorizontal: 20,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: nothing.white,
+          backgroundColor: "#4BA3E8",
           borderRadius: 14,
         }}
       >
-        <Text style={{ color: nothing.black, fontWeight: "900" }}>Retry</Text>
+        <Text style={{ color: "#172B3A", fontWeight: "900" }}>Retry</Text>
       </Pressable>
     </GestureHandlerRootView>
   );
