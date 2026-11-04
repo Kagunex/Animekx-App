@@ -11,8 +11,8 @@ import { useWatchHistory } from "@/hooks/use-watch-history";
 import { useProviderSync } from "@/hooks/use-provider-sync";
 import { tokenHealth } from "@/lib/provider-sync-contract";
 import { deleteCurrentAccount } from "@/lib/account";
-import { checkForAnimeKxUpdate, type AppRelease } from "@/lib/app-update";
-import { downloadAndInstallAnimeKxUpdate } from "@/lib/android-app-installer";
+import { checkForAnimeKzUpdate, type AppRelease } from "@/lib/app-update";
+import { downloadAndInstallAnimeKzUpdate } from "@/lib/android-app-installer";
 import { AppIcon } from "@/components/app-icon";
 import { Toggle } from "@/components/toggle";
 import {
@@ -55,7 +55,7 @@ export default function SettingsScreen() {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [installingUpdate, setInstallingUpdate] = useState(false);
   const installedVersion =
-    Constants.expoConfig?.version || Constants.nativeAppVersion || "0.0.0";
+    Constants.nativeAppVersion || Constants.expoConfig?.version || "0.0.0";
   const nsfw = useNsfwPreference();
   const theme = useTheme();
 
@@ -114,8 +114,9 @@ export default function SettingsScreen() {
   const checkForUpdate = async () => {
     setCheckingUpdate(true);
     setUpdateMessage(null);
+    setAvailableRelease(null);
     try {
-      const result = await checkForAnimeKxUpdate(installedVersion, {
+      const result = await checkForAnimeKzUpdate(installedVersion, {
         force: true,
       });
       setAvailableRelease(result.available ? result.release : null);
@@ -140,7 +141,7 @@ export default function SettingsScreen() {
     setInstallingUpdate(true);
     setUpdateMessage("DOWNLOADING VERIFIED APK.");
     try {
-      await downloadAndInstallAnimeKxUpdate(availableRelease);
+      await downloadAndInstallAnimeKzUpdate(availableRelease);
       setUpdateMessage("OPENING ANDROID INSTALLER.");
     } catch (error) {
       setUpdateMessage(

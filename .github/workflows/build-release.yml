@@ -289,6 +289,26 @@ jobs:
           echo "APK found:"
           ls -lh "$APK"
 
+          AAPT=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" \
+            -type f \
+            -name aapt \
+            | sort -V \
+            | tail -1)
+
+          test -n "$AAPT" || {
+            echo "ERROR: Android aapt was not found."
+            exit 1
+          }
+
+          PACKAGE_NAME=$("$AAPT" dump badging "$APK" \
+            | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p")
+
+          echo "APK application ID: $PACKAGE_NAME"
+          test "$PACKAGE_NAME" = "com.animekz.app" || {
+            echo "ERROR: refusing to publish an APK that is not AnimeKz (com.animekz.app)."
+            exit 1
+          }
+
           echo "Checking APK integrity..."
 
           unzip -t "$APK"

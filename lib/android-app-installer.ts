@@ -3,7 +3,10 @@ import * as FileSystemLegacy from "expo-file-system/legacy";
 import * as IntentLauncher from "expo-intent-launcher";
 import { Platform } from "react-native";
 
-import type { AppRelease } from "@/lib/app-update";
+import {
+  trustedAnimeKzApkAsset,
+  type AppRelease,
+} from "@/lib/app-update";
 
 const APK_MIME_TYPE =
   "application/vnd.android.package-archive";
@@ -13,7 +16,7 @@ const FLAG_GRANT_READ_URI_PERMISSION = 0x00000001;
 function updateDirectory() {
   const directory = new Directory(
     Paths.cache,
-    "aniraku-updates"
+    "animekz-updates"
   );
 
   directory.create({
@@ -29,7 +32,7 @@ function updateDirectory() {
  * selected by app-update, then hand it to Android's
  * package installer.
  */
-export async function downloadAndInstallAnirakuUpdate(
+export async function downloadAndInstallAnimeKzUpdate(
   release: AppRelease
 ) {
   if (Platform.OS !== "android") {
@@ -49,7 +52,7 @@ export async function downloadAndInstallAnirakuUpdate(
     );
   }
 
-  // Trust boundary: release metadata flows from the GitHub
+  // Trust boundary: release metadata flows from the AnimeKz GitHub
   // API into an ACTION_VIEW intent that triggers the package
   // installer. Re-validate here so a compromised cache entry
   // can't redirect the download or smuggle a path traversal
@@ -66,20 +69,18 @@ export async function downloadAndInstallAnirakuUpdate(
     );
   }
 
-  const trustedDownload =
-    parsedDownload.protocol === "https:" &&
-    parsedDownload.origin === "https://github.com" &&
-    parsedDownload.pathname.startsWith(
-      "/Aniraku/Aniraku-App/releases/download/"
-    );
+  const trustedAsset = trustedAnimeKzApkAsset({
+    name: release.assetName,
+    size: release.assetSize,
+    browser_download_url: release.downloadUrl,
+  }, release.version);
 
-  const trustedName =
-    /^[A-Za-z0-9._-]+\.apk$/.test(
-      release.assetName
-    ) &&
-    !release.assetName.includes("..");
-
-  if (!trustedDownload || !trustedName) {
+  if (
+    parsedDownload.protocol !== "https:" ||
+    !trustedAsset ||
+    trustedAsset.name !== release.assetName ||
+    trustedAsset.size !== release.assetSize
+  ) {
     throw new Error(
       "THE PUBLISHED UPDATE ASSET COULD NOT BE VERIFIED."
     );
@@ -131,11 +132,3 @@ export async function downloadAndInstallAnirakuUpdate(
     }
   );
 }
-
-/**
- * Animekz compatibility export.
- * Keeps the existing installer logic while allowing
- * Animekz UI components to use the new function name.
- */
-export const downloadAndInstallAnimeKxUpdate =
-  downloadAndInstallAnirakuUpdate;

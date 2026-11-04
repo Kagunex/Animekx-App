@@ -4,10 +4,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { AppIcon } from "@/components/app-icon";
 import { GlassSurface, nothing } from "@/components/nothing-ui";
-import { checkForAnimeKxUpdate, updateDismissalKey, type AppRelease } from "@/lib/app-update";
-import { downloadAndInstallAnimeKxUpdate } from "@/lib/android-app-installer";
+import { checkForAnimeKzUpdate, updateDismissalKey, type AppRelease } from "@/lib/app-update";
+import { downloadAndInstallAnimeKzUpdate } from "@/lib/android-app-installer";
 
-const installedVersion = Constants.expoConfig?.version || Constants.nativeAppVersion || "0.0.0";
+// Compare against the binary's installed version; an OTA manifest's app
+// config can differ from the native APK version.
+const installedVersion = Constants.nativeAppVersion || Constants.expoConfig?.version || "0.0.0";
 
 export function AppUpdatePrompt() {
   const [release, setRelease] = useState<AppRelease | null>(null);
@@ -16,8 +18,11 @@ export function AppUpdatePrompt() {
 
   const check = useCallback(async () => {
     try {
-      const result = await checkForAnimeKxUpdate(installedVersion);
-      if (!result.available || !result.release) return;
+      const result = await checkForAnimeKzUpdate(installedVersion);
+      if (!result.available || !result.release) {
+        setRelease(null);
+        return;
+      }
       const dismissed = await AsyncStorage.getItem(updateDismissalKey(result.release.version)).catch(() => null);
       if (!dismissed) setRelease(result.release);
     } catch {}
@@ -40,7 +45,7 @@ export function AppUpdatePrompt() {
     setInstalling(true);
     setStatus("Downloading...");
     try {
-      await downloadAndInstallAnimeKxUpdate(release);
+      await downloadAndInstallAnimeKzUpdate(release);
       setStatus("Opening installer...");
     } catch (e) {
       setStatus(e instanceof Error ? e.message : "Update failed");

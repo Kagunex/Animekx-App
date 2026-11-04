@@ -1,20 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { compareVersions, isReleaseNewer, normalizeVersion, parseGitHubRelease, trustedAnirakuApkAsset, updateDismissalKey } from "../lib/app-update";
+import { ANIMEKZ_LATEST_RELEASE_URL, compareVersions, isReleaseNewer, normalizeVersion, parseGitHubRelease, trustedAnimeKzApkAsset, updateDismissalKey } from "../lib/app-update";
 
-describe("Aniraku direct-distribution update logic", () => {
+describe("AnimeKz direct-distribution update logic", () => {
   it("normalizes and compares release tags without treating a suffix as a newer build", () => {
-    expect(normalizeVersion("v4.2.1 — Stability")).toBe("4.2.1");
-    expect(compareVersions("4.2.1", "4.2")).toBe(1);
-    expect(compareVersions("4.2", "4.2.0")).toBe(0);
-    expect(isReleaseNewer("4.2.1", "v4.2.1")).toBe(false);
+    expect(normalizeVersion("v1.0.1")).toBe("1.0.1");
+    expect(normalizeVersion("v5.8.10 — unrelated app")).toBe("0.0.0");
+    expect(normalizeVersion("v5.8.10.2")).toBe("0.0.0");
+    expect(compareVersions("1.0.1", "1.0.0")).toBe(1);
+    expect(compareVersions("1.0.0", "1.0.0")).toBe(0);
+    expect(compareVersions("1.0.0", "1.0.1")).toBe(-1);
+    expect(isReleaseNewer("1.0.0", "v1.0.1")).toBe(true);
+    expect(isReleaseNewer("1.0.0", "v1.0.0")).toBe(false);
+    expect(isReleaseNewer("1.0.1", "v1.0.0")).toBe(false);
   });
 
-  it("accepts only a trusted Aniraku GitHub APK asset and namespaces dismissal by release", () => {
-    const asset = { name: "Aniraku-v4.2.4.apk", size: 88_000_000, content_type: "application/vnd.android.package-archive", browser_download_url: "https://github.com/Aniraku/Aniraku-App/releases/download/v4.2.4/Aniraku-v4.2.4.apk" };
-    expect(trustedAnirakuApkAsset(asset)).toMatchObject({ name: "Aniraku-v4.2.4.apk", size: 88_000_000 });
-    expect(trustedAnirakuApkAsset({ ...asset, browser_download_url: "https://example.com/Aniraku-v4.2.4.apk" })).toBeNull();
-    expect(parseGitHubRelease({ tag_name: "v4.2.4", name: "v4.2.4", html_url: "https://github.com/Aniraku/Aniraku-App/releases/tag/v4.2.4", assets: [asset] })).toMatchObject({ version: "4.2.4", assetName: "Aniraku-v4.2.4.apk" });
-    expect(parseGitHubRelease({ tag_name: "v4.2.1" })).toBeNull();
-    expect(updateDismissalKey("v4.2.4")).toBe("aniraku.update.dismissed:4.2.4");
+  it("uses the AnimeKz repo and only accepts matching APK assets from its release", () => {
+    expect(ANIMEKZ_LATEST_RELEASE_URL).toBe("https://api.github.com/repos/Kagunex/Animekx-App/releases/latest");
+    const asset = { name: "animekx-v1.0.1-universal.apk", size: 88_000_000, content_type: "application/vnd.android.package-archive", browser_download_url: "https://github.com/Kagunex/Animekx-App/releases/download/v1.0.1/animekx-v1.0.1-universal.apk" };
+    expect(trustedAnimeKzApkAsset(asset, "1.0.1")).toMatchObject({ name: "animekx-v1.0.1-universal.apk", size: 88_000_000 });
+    expect(trustedAnimeKzApkAsset({ ...asset, browser_download_url: "https://example.com/animekx-v1.0.1-universal.apk" }, "1.0.1")).toBeNull();
+    expect(trustedAnimeKzApkAsset({ ...asset, name: "aniraku-v1.0.1-universal.apk" }, "1.0.1")).toBeNull();
+    expect(trustedAnimeKzApkAsset({ ...asset, name: "animekx-v1.0.0-universal.apk" }, "1.0.1")).toBeNull();
+    expect(parseGitHubRelease({ tag_name: "v1.0.1", name: "AnimeKz v1.0.1", html_url: "https://github.com/Kagunex/Animekx-App/releases/tag/v1.0.1", assets: [asset] })).toMatchObject({ version: "1.0.1", assetName: "animekx-v1.0.1-universal.apk", name: "AnimeKz v1.0.1" });
+    expect(parseGitHubRelease({ tag_name: "v5.8.10.2", html_url: "https://github.com/Aniraku/Aniraku-App/releases/tag/v5.8.10.2", assets: [asset] })).toBeNull();
+    expect(parseGitHubRelease({ tag_name: "v1.0.1" })).toBeNull();
+    expect(updateDismissalKey("v1.0.1")).toBe("animekz.update.dismissed:1.0.1");
   });
 });
