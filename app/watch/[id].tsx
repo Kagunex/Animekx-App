@@ -3,8 +3,9 @@ import { useLocalSearchParams, router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { parseRouteEpisode, parseRouteId } from "@/lib/route-params";
-import { ActivityIndicator, Alert, Animated, BackHandler, Dimensions, FlatList, LayoutChangeEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Animated, BackHandler, Dimensions, FlatList, LayoutChangeEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Video, { type OnProgressData, type OnLoadData, type OnBufferData, type VideoRef } from "react-native-video";
 import { useKeepAwake } from "expo-keep-awake";
 import { StatusBar } from "expo-status-bar";
@@ -12,6 +13,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import * as Brightness from "expo-brightness";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
+import { BlurView } from "expo-blur";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Gear from "lucide-react-native/icons/settings";
 import Speedometer from "lucide-react-native/icons/gauge";
@@ -232,6 +234,9 @@ export default function WatchScreen() {
   const [playerStatus, setPlayerStatus] = useState<"idle" | "loading" | "playing" | "paused" | "error">("idle");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
+  const [synopsisExpanded, setSynopsisExpanded] = useState(false);
+  useEffect(() => { setSynopsisExpanded(false); }, [animeId]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [buffering, setBuffering] = useState(false);
@@ -265,6 +270,11 @@ export default function WatchScreen() {
   type ActivePanel = "settings" | "subtitles" | "speed" | "server" | "chapters" | "source" | "quality" | "download" | null;
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [manualFullscreen, setManualFullscreen] = useState(false);
+  const { width: viewportWidth } = useWindowDimensions();
+  const safeAreaInsets = useSafeAreaInsets();
+  const compactPlayerControls = viewportWidth < 390 && !manualFullscreen;
+  const wideBento = viewportWidth >= 820;
+  const episodeGridColumns = Math.max(3, Math.min(8, Math.floor((viewportWidth - 60) / 62)));
   const [episodeSearch, setEpisodeSearch] = useState("");
   const [episodePage, setEpisodePage] = useState(0);
   const [progressWidth, setProgressWidth] = useState(0);
@@ -544,6 +554,7 @@ export default function WatchScreen() {
   }, []);
 
   const clearEpisodePlayback = useCallback(() => {
+    setVideoAspectRatio(16 / 9);
     videoRef.current?.pause();
     setStream(null);
     setSource(null);
@@ -2235,12 +2246,12 @@ export default function WatchScreen() {
     {/* NOTE: panHandlers live on the sibling overlay below, NOT on this parent.
         Parent-level onStartShouldSetPanResponder stole Pressable touches and the
         native Video SurfaceView eats touches aimed behind it. */}
-    <View style={[styles.videoShell, manualFullscreen && ps.videoShellFullscreen]}>
+    <View style={[styles.videoShell, { aspectRatio: videoAspectRatio }, manualFullscreen && ps.videoShellFullscreen]}>
       {embedSource && !source ? <EmbedPlayer uri={embedSource.url} headers={nativePlaybackHeaders(playbackHeaders)} onError={() => handleProviderBlockedRef.current("player")} onLoaded={() => { embedReadyRef.current = true; }} /> : null}
       {source ? <Video key={activeProvider?.id ?? "default"} ref={videoRef} style={StyleSheet.absoluteFill} source={{ uri: videoSourceUri, headers: videoSourceHeaders, type: videoContentType, bufferConfig: videoBufferConfig }}
         paused={!isPlaying} rate={is2xSeeking ? 2.0 : speed} resizeMode="contain" muted={muted} volume={volume}
         maxBitRate={adaptiveBitrateCap ?? undefined}
-        onLoad={(data: OnLoadData) => { if (__DEV__) console.log(`[watch] first-frame t=${Date.now() - _watchMountTime}ms provider=${activeProvider?.id ?? "?"}`); setDuration(data.duration); sourceFirstFrame.current = true; sourceStarted.current = true; setPlayerStatus("playing"); setIsPlaying(true); setLastPlayerError(null); setShowControls(true); }}
+        onLoad={(data: OnLoadData) => { if (__DEV__) console.log(`[watch] first-frame t=${Date.now() - _watchMountTime}ms provider=${activeProvider?.id ?? "?"}`); const naturalSize = data.naturalSize; if (naturalSize?.width && naturalSize?.height) setVideoAspectRatio(Math.max(0.56, Math.min(1.78, naturalSize.width / naturalSize.height))); setDuration(data.duration); sourceFirstFrame.current = true; sourceStarted.current = true; setPlayerStatus("playing"); setIsPlaying(true); setLastPlayerError(null); setShowControls(true); }}
         onProgress={handleVideoProgress}
         onBuffer={(data: OnBufferData) => { setBuffering(data.isBuffering); }}
         onVideoTracks={handleVideoTracks}
@@ -2272,6 +2283,12 @@ export default function WatchScreen() {
           <View style={styles.thumbnailLoadingContent}><View style={styles.thumbnailPlay}><Play size={18} color={nothing.black} /></View><Text style={styles.thumbnailEpisode}>EPISODE {episode}</Text><Text numberOfLines={2} style={styles.thumbnailTitle}>{selectedEpisode?.title || title}</Text><Text style={styles.thumbnailStatus}>STARTING VIDEO</Text></View>
         </View> : error ? <Text style={styles.errorText}>{error}</Text> : <Text style={styles.placeholderText}>PREPARING VIDEO</Text>}
       </View>}
+
+      {!source && !embedSource ? <View style={styles.loadingHeader}>
+        <BlurView pointerEvents="none" intensity={30} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.loadingBackButton} hitSlop={8}><ArrowLeft size={20} color="#FFFFFF" /></Pressable>
+        <View style={styles.loadingHeaderCopy}><Text numberOfLines={1} style={styles.loadingHeaderTitle}>{title}</Text><Text style={styles.loadingHeaderEpisode}>EPISODE {episode}</Text></View>
+      </View> : null}
 
       {/* ── Subtitle Layer (lifts above the bottom deck while chrome is
           visible so cues are never hidden behind the timeline). ── */}
@@ -2366,6 +2383,7 @@ export default function WatchScreen() {
           <View pointerEvents="none" style={styles.scrimBottomMain} />
           {/* TOP BAR */}
           <View style={styles.topBar}>
+            <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
             <Pressable onPress={() => { if (manualFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
               <ArrowLeft size={22} color="#FFF" />
             </Pressable>
@@ -2375,10 +2393,10 @@ export default function WatchScreen() {
                 <Speedometer size={18} color="#FFF" />
               </Pressable>
               <Pressable onPress={() => setActivePanel(activePanel === "subtitles" ? null : "subtitles")} accessibilityRole="button" accessibilityLabel="Subtitles" style={[styles.iconButton, activePanel === "subtitles" && styles.iconButtonActive]} hitSlop={8}>
-                <Subtitles size={18} color={activePanel === "subtitles" ? nothing.red : "#FFF"} />
+                <Subtitles size={18} color={activePanel === "subtitles" ? "#8CCAFF" : "#FFF"} />
               </Pressable>
               <Pressable onPress={() => setActivePanel(activePanel === "settings" ? null : "settings")} accessibilityRole="button" accessibilityLabel="Settings" style={[styles.iconButton, activePanel === "settings" && styles.iconButtonActive]} hitSlop={8}>
-                <Gear size={18} color={activePanel === "settings" ? nothing.red : "#FFF"} />
+                <Gear size={18} color={activePanel === "settings" ? "#8CCAFF" : "#FFF"} />
               </Pressable>
             </View>
           </View>
@@ -2413,54 +2431,54 @@ export default function WatchScreen() {
             {/* Action rail — reference layout: lock+volume | −10 prev play next +10 | download fullscreen.
                 ±10 uses numbered icons — the old rail had two identical SkipBack/SkipForward
                 pairs (±10 vs prev/next episode) that were impossible to tell apart. */}
-            <View style={styles.actionRail}>
-              <View style={styles.railSide}>
-                <Pressable onPress={engagePlayerLock} accessibilityRole="button" accessibilityLabel="Lock player controls" style={styles.railBtn} hitSlop={8}>
+            <View style={[styles.actionRail, compactPlayerControls && styles.actionRailCompact]}>
+              <View style={[styles.railSide, compactPlayerControls && styles.railSideCompact]}>
+                <Pressable onPress={engagePlayerLock} accessibilityRole="button" accessibilityLabel="Lock player controls" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                   <Lock size={18} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setMuted((m) => !m); }} accessibilityRole="button" accessibilityLabel={muted ? "Unmute" : "Mute"} style={styles.railBtn} hitSlop={8}>
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setMuted((m) => !m); }} accessibilityRole="button" accessibilityLabel={muted ? "Unmute" : "Mute"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                   {muted ? <SpeakerNone size={18} color="#FFF" /> : <SpeakerHigh size={18} color="#FFF" />}
                 </Pressable>
               </View>
-              <View style={styles.railCenter}>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(-10); }} accessibilityRole="button" accessibilityLabel="Back 10 seconds" style={styles.railBtn} hitSlop={8}>
+              <View style={[styles.railCenter, compactPlayerControls && styles.railCenterCompact]}>
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(-10); }} accessibilityRole="button" accessibilityLabel="Back 10 seconds" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                   <AppIcon name="rewind-10" size={23} color="#FFF" />
                 </Pressable>
-                <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.railBtn, !previousKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
+                <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !previousKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
                   <SkipBack size={20} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setIsPlaying((p) => !p); }} onLongPress={beginHoldSpeed} onPressOut={endHoldSpeed} delayLongPress={400} accessibilityRole="button" accessibilityLabel={isPlaying ? "Pause" : "Play"} accessibilityHint="Hold for 2x speed" style={[styles.bigPlayButton, manualFullscreen && styles.bigPlayButtonFullscreen]}>
-                  {isPlaying ? <Pause size={26} color="#000" /> : <Play size={26} color="#000" style={{ marginLeft: 2 }} />}
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setIsPlaying((p) => !p); }} onLongPress={beginHoldSpeed} onPressOut={endHoldSpeed} delayLongPress={400} accessibilityRole="button" accessibilityLabel={isPlaying ? "Pause" : "Play"} accessibilityHint="Hold for 2x speed" style={({ pressed }) => [styles.bigPlayButton, compactPlayerControls && styles.bigPlayButtonCompact, manualFullscreen && styles.bigPlayButtonFullscreen, pressed && styles.playerButtonPressed]}>
+                  {isPlaying ? <Pause size={26} color="#172B45" /> : <Play size={26} color="#172B45" style={{ marginLeft: 2 }} />}
                 </Pressable>
-                <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={[styles.railBtn, !nextKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
+                <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !nextKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
                   <SkipForward size={20} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(10); }} accessibilityRole="button" accessibilityLabel="Forward 10 seconds" style={styles.railBtn} hitSlop={8}>
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(10); }} accessibilityRole="button" accessibilityLabel="Forward 10 seconds" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                   <AppIcon name="fast-forward-10" size={23} color="#FFF" />
                 </Pressable>
               </View>
-              <View style={styles.railSideRight}>
+              <View style={[styles.railSideRight, compactPlayerControls && styles.railSideCompact]}>
                 {downloadProgress !== null ? (
                   /* expo-file-system's File.downloadFileAsync emits no incremental
                      progress (only the final 1.0), so show an honest spinner. */
-                  <View style={styles.downloadBtn} accessibilityLabel="Downloading episode">
+                  <View style={[styles.downloadBtn, compactPlayerControls && styles.railBtnCompact]} accessibilityLabel="Downloading episode">
                     <ActivityIndicator size="small" color="#FFF" />
                   </View>
                 ) : offlineDownload ? (
-                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); playOffline(); }} onLongPress={() => { void removeDownload(); }} accessibilityRole="button" accessibilityLabel="Play saved download" accessibilityHint="Long press to remove the saved copy" style={styles.railBtn} hitSlop={8}>
+                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); playOffline(); }} onLongPress={() => { void removeDownload(); }} accessibilityRole="button" accessibilityLabel="Play saved download" accessibilityHint="Long press to remove the saved copy" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                     <DownloadSimple size={19} color={nothing.green} />
                   </Pressable>
                 ) : (
-                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onDownloadPress(); }} accessibilityRole="button" accessibilityLabel="Download episode" accessibilityHint="Opens quality options when the provider offers them" style={styles.railBtn} hitSlop={8}>
+                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onDownloadPress(); }} accessibilityRole="button" accessibilityLabel="Download episode" accessibilityHint="Opens quality options when the provider offers them" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                     <Download size={19} color="#FFF" />
                   </Pressable>
                 )}
                 {pipAvailable && source ? (
-                  <Pressable onPress={() => enterPiP()} accessibilityRole="button" accessibilityLabel="Picture in picture" style={styles.railBtn} hitSlop={8}>
+                  <Pressable onPress={() => enterPiP()} accessibilityRole="button" accessibilityLabel="Picture in picture" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                     <PictureInPicture size={18} color="#FFF" />
                   </Pressable>
                 ) : null}
-                <Pressable onPress={manualFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={manualFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={styles.railBtn} hitSlop={8}>
+                <Pressable onPress={manualFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={manualFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
                   {manualFullscreen ? <ArrowsIn size={18} color="#FFF" /> : <ArrowsOut size={18} color="#FFF" />}
                 </Pressable>
               </View>
@@ -2507,7 +2525,7 @@ export default function WatchScreen() {
       {/* Locked state */}
       {playerLocked ? (
         <Pressable style={[styles.lockedPill, unlockArmed && styles.lockedPillArmed]} onPress={requestUnlock} accessibilityRole="button" accessibilityLabel="Unlock player" accessibilityHint="Tap twice to unlock player controls">
-          <Lock size={16} color={unlockArmed ? nothing.red : "#FFF"} />
+          <Lock size={16} color={unlockArmed ? "#8CCAFF" : "#FFF"} />
           <Text style={styles.lockedText}>{unlockArmed ? "Tap again to unlock" : "Controls locked"}</Text>
         </Pressable>
       ) : null}
@@ -2540,6 +2558,7 @@ export default function WatchScreen() {
 
       {/* ── Settings panel — quality + playback info ── */}
       {source && activePanel === "settings" && !playerLocked ? <View style={ps.settingsOverlay}>
+        <BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Settings</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close settings" hitSlop={8}>
@@ -2587,6 +2606,7 @@ export default function WatchScreen() {
 
       {/* ── Subtitle panel — language, size, bg, outline, font ── */}
       {source && activePanel === "subtitles" && !playerLocked ? <View style={ps.settingsOverlay}>
+        <BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Subtitles</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close subtitles" hitSlop={8}>
@@ -2647,8 +2667,9 @@ export default function WatchScreen() {
     {error ? <View style={styles.errorAction}><NothingCard style={styles.errorCard}><DotLabel tone="muted">{futureRelease ? "FUTURE EPISODE" : "VIDEO UNAVAILABLE"}</DotLabel><Text style={styles.errorCopy}>{error}</Text>{lastPlayerError ? <Text style={styles.errorCopy}>{humanPlayerError(lastPlayerError) ?? "Playback failed on this server."}</Text> : null}{lastPlayerError ? <Text style={ps.diagnosticLine}>{`PLAYER · ${lastPlayerError}`}</Text> : null}{skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? <Text style={ps.diagnosticLine}>{`SKIP DATA · ${skipFetchStatus.toUpperCase()}`}</Text> : null}{futureRelease ? null : <View style={styles.errorBtnRow}><NothingButton label={t("player.retry")} onPress={retry} variant="outline" /><NothingButton label={t("player.switchServer")} onPress={() => handleProviderBlocked("permanent")} variant="outline" /><NothingButton label={t("player.copyError")} onPress={() => { void Clipboard.setStringAsync(`${error}${lastPlayerError ? `\nPLAYER · ${lastPlayerError}` : ""}${skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? `\nSKIP DATA · ${skipFetchStatus.toUpperCase()}` : ""}\nSERVER · ${activeProvider?.label || "UNKNOWN"} · ${embedSource ? "EMBED" : useSourceProxy ? "PROXY" : "DIRECT"}`).catch(() => {}); }} variant="outline" /></View>}</NothingCard></View> : null}
 
     {/* ── Below player ── */}
-    {!manualFullscreen ? <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
-      <View style={styles.th3Section}>
+    {!manualFullscreen ? <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, safeAreaInsets.bottom + 24) }]} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
+      <View style={[styles.bentoTopRow, wideBento && styles.bentoTopRowWide]}>
+      <View style={[styles.th3Section, wideBento && styles.bentoInfoWide]}>
         <Text style={styles.th3Watching}><Text style={styles.th3WatchingGreen}>You are watching </Text><Text style={styles.th3WatchingWhite}>Episode {episode}</Text></Text>
         <View style={styles.watchAnimeCard}>
           {image ? <Image source={{ uri: image }} style={styles.watchAnimePoster} contentFit="cover" cachePolicy="memory-disk" /> : null}
@@ -2666,7 +2687,8 @@ export default function WatchScreen() {
         {animeQuery.data?.genres?.length ? <View style={styles.watchGenreRow}>{animeQuery.data.genres.slice(0, 4).map((genre) => <Text key={genre} style={styles.watchGenreBadge}>{genre}</Text>)}</View> : null}
         {animeQuery.data?.description ? <View style={styles.watchSynopsis}>
           <Text style={styles.watchSynopsisLabel}>SYNOPSIS</Text>
-          <Text style={styles.watchSynopsisText} numberOfLines={4}>{animeQuery.data.description.replace(/<[^>]+>/g, "")}</Text>
+          <Text style={styles.watchSynopsisText} numberOfLines={synopsisExpanded ? undefined : 4}>{animeQuery.data.description.replace(/<[^>]+>/g, "")}</Text>
+          {animeQuery.data.description.replace(/<[^>]+>/g, "").length > 180 ? <Pressable onPress={() => setSynopsisExpanded((value) => !value)} accessibilityRole="button" accessibilityLabel={synopsisExpanded ? "Show less synopsis" : "Read full synopsis"} style={styles.synopsisToggle}><Text style={styles.synopsisToggleText}>{synopsisExpanded ? "SHOW LESS" : "READ MORE"}</Text><CaretRight size={14} color="#3985F5" style={synopsisExpanded ? { transform: [{ rotate: "-90deg" }] } : { transform: [{ rotate: "90deg" }] }} /></Pressable> : null}
         </View> : null}
         <View style={styles.watchEpisodeNav}>
           <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.watchEpisodeButton, !previousKnownEpisode && styles.watchEpisodeDisabled]}>
@@ -2677,25 +2699,27 @@ export default function WatchScreen() {
           </Pressable>
         </View>
         {swipeDirectionHint ? <View style={styles.swipeHintRow}><AppIcon name="chevron-left" size={12} color={previousKnownEpisode ? nothing.muted : nothing.dim} /><Text style={[styles.swipeHintText, !previousKnownEpisode && !nextKnownEpisode && { color: nothing.dim }]}>{swipeDirectionHint}</Text><AppIcon name="chevron-right" size={12} color={nextKnownEpisode ? nothing.muted : nothing.dim} /></View> : null}
+      </View>
+      {(providers.sub.length > 0 || providers.dub.length > 0 || activeProviders.length > 0) ? <View style={[styles.providerSection, wideBento && styles.providerSectionWide]}>
+        <View style={styles.bentoSectionHeading}><View><Text style={styles.bentoEyebrow}>STREAM OPTIONS</Text><Text style={styles.th3EpTitle}>Choose your stream</Text></View><View style={styles.liveIndicator}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View></View>
         <View style={styles.th3Tabs}>
-          {providers.sub.length > 0 && providers.dub.length > 0 ? (["sub", "dub"] as Language[]).map((item) => { const active = language === item; return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`${item === "sub" ? "Subtitled" : "Dubbed"}${active ? " (selected)" : ""}`} accessibilityHint="Switch to this audio language" onPress={() => selectLanguage(item)} style={[styles.th3Tab, active && styles.th3TabActive]}><Text style={[styles.th3TabText, active && styles.th3TabTextActive]}>{item === "sub" ? "SUB" : "DUB"}</Text></Pressable>; }) : null}
+          {providers.sub.length > 0 && providers.dub.length > 0 ? (["sub", "dub"] as Language[]).map((item) => { const active = language === item; return <Pressable key={item} accessibilityRole="tab" accessibilityLabel={`${item === "sub" ? "Subtitled" : "Dubbed"}${active ? " (selected)" : ""}`} accessibilityHint="Switch to this audio language" onPress={() => selectLanguage(item)} style={[styles.th3Tab, active && styles.th3TabActive]}><Text style={[styles.th3TabText, active && styles.th3TabTextActive]}>{item === "sub" ? "SUB" : "DUB"}</Text></Pressable>; }) : <Text style={styles.providerLanguageNote}>{language === "sub" ? "SUBTITLED" : "DUBBED"} · {activeProviders.length} {activeProviders.length === 1 ? "SERVER" : "SERVERS"}</Text>}
         </View>
         <View style={styles.th3Servers}>
-          {activeProviders.map((provider, index) => { const active = index === serverIndex; return <Pressable key={provider.id} accessibilityRole="button" accessibilityLabel={`Server: ${provider.label}${active ? " (selected)" : ""}`} accessibilityHint={active ? "Currently active server" : "Switch to this streaming server"} onPress={() => selectServer(index)} style={[styles.th3Server, active && styles.th3ServerActive]}><Text style={[styles.th3ServerText, active && styles.th3ServerTextActive]}>{provider.label}</Text></Pressable>; })}
+          {activeProviders.map((provider, index) => { const active = index === serverIndex; return <Pressable key={provider.id} accessibilityRole="button" accessibilityLabel={`Server: ${provider.label}${active ? " (selected)" : ""}`} accessibilityHint={active ? "Currently active server" : "Switch to this streaming server"} onPress={() => selectServer(index)} style={({ pressed }) => [styles.th3Server, active && styles.th3ServerActive, pressed && styles.cardButtonPressed]}><Text style={[styles.th3ServerText, active && styles.th3ServerTextActive]}>{provider.label}</Text>{active ? <Check size={14} color="#FFFFFF" /> : null}</Pressable>; })}
         </View>
-        <View style={styles.th3EpHead}>
-          <Text style={styles.th3EpTitle}>{t("player.listOfEpisodes")}</Text>
-        </View>
+      </View> : null}
+      </View>
+      <View style={styles.episodesSection}>
+        <View style={styles.th3EpHead}><View><Text style={styles.bentoEyebrow}>EPISODE GUIDE</Text><Text style={styles.th3EpTitle}>{t("player.listOfEpisodes")}</Text></View><Text style={styles.episodeCountBadge}>{filteredEpisodes.length} EP</Text></View>
         <View style={styles.th3EpsRow}>
-          <AppIcon name="options" size={14} color={nothing.muted} />
-          <Text style={styles.th3EpsText}>EPS: {episodePage * EPISODE_PAGE_SIZE + 1}-{Math.min((episodePage + 1) * EPISODE_PAGE_SIZE, filteredEpisodes.length)}</Text>
-          <View style={styles.th3EpSearch}><AppIcon name="magnify" size={14} color={nothing.muted} /><TextInput value={episodeSearch} onChangeText={setEpisodeSearch} placeholder="Ep number" placeholderTextColor={nothing.dim} style={styles.th3EpSearchInput} returnKeyType="done" keyboardType={episodeSearch && /\d/.test(episodeSearch) ? "number-pad" : "default"} /></View>
+          <AppIcon name="options" size={14} color="#71839A" />
+          <Text style={styles.th3EpsText}>EPS {episodePage * EPISODE_PAGE_SIZE + 1}–{Math.min((episodePage + 1) * EPISODE_PAGE_SIZE, filteredEpisodes.length)}</Text>
+          <View style={styles.th3EpSearch}><AppIcon name="magnify" size={15} color="#71839A" /><TextInput value={episodeSearch} onChangeText={setEpisodeSearch} placeholder="Find episode" placeholderTextColor="#8FA2BA" style={styles.th3EpSearchInput} returnKeyType="done" keyboardType={episodeSearch && /\d/.test(episodeSearch) ? "number-pad" : "default"} /></View>
         </View>
-        {episodeQuery.isPending ? <View style={styles.episodeLoading}><ActivityIndicator color={"#FFFFFF"} /><Text style={styles.episodeLoadingText}>LOADING EPISODES</Text></View> : filteredEpisodes.length ? <>
-          <Animated.View style={[styles.episodeSwipeContainer, { transform: [{ translateX: swipeOffsetX }] }]} {...episodeSwipeResponder.panHandlers}>
-            <EpisodeGrid episodes={pagedEpisodes} activeEpisode={episode} totalPages={totalEpisodePages} page={safeEpisodePage} onPageChange={setEpisodePage} onSelect={goToEpisode} onInfo={openEpisodeInfo} totalEpisodeCount={filteredEpisodes.length} />
-          </Animated.View>
-        </> : <Text style={styles.emptyEpisodeText}>{episodeSearch ? "No episodes match your search." : "No episodes are listed for this title."}</Text>}
+        {episodeQuery.isPending ? <View style={styles.episodeLoading}><ActivityIndicator color="#3985F5" /><Text style={styles.episodeLoadingText}>LOADING EPISODES</Text></View> : filteredEpisodes.length ? <Animated.View style={[styles.episodeSwipeContainer, { transform: [{ translateX: swipeOffsetX }] }]} {...episodeSwipeResponder.panHandlers}>
+          <EpisodeGrid episodes={pagedEpisodes} activeEpisode={episode} totalPages={totalEpisodePages} page={safeEpisodePage} onPageChange={setEpisodePage} onSelect={goToEpisode} onInfo={openEpisodeInfo} totalEpisodeCount={filteredEpisodes.length} columns={episodeGridColumns} />
+        </Animated.View> : <Text style={styles.emptyEpisodeText}>{episodeSearch ? "No episodes match your search." : "No episodes are listed for this title."}</Text>}
       </View>
       <View style={styles.watchCommunitySection}>
         <View style={styles.ratingRow}><Text style={styles.ratingPrompt}>{currentRating ? `${t("player.youRated")} ${currentRating}/10` : t("player.rateEpisode")}</Text><View style={styles.ratingChoices}>{Array.from({ length: 10 }, (_, index) => index + 1).map((score) => <Pressable key={score} onPress={() => { if (!auth.user) { router.push("/auth" as never); return; } ratings.setRating.mutate({ episode, score }); }} style={[styles.ratingChoice, currentRating >= score && styles.ratingChoiceActive]}><Text style={[styles.ratingChoiceText, currentRating >= score && styles.ratingChoiceTextActive]}>{score}</Text></Pressable>)}</View></View>
@@ -2704,18 +2728,18 @@ export default function WatchScreen() {
     </ScrollView> : null}
 
     {/* ── Modal Pickers ── */}
-    <Modal visible={activePanel === "speed"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><Text style={styles.modalTitle}>{t("player.playbackSpeed")}</Text>{[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => <Pressable key={val} style={[styles.modalItem, speed === val && styles.modalItemActive]} onPress={() => { setSpeed(val); lockedSpeed.current = val; setActivePanel(null); }}><Text style={[styles.modalItemText, speed === val && styles.modalItemTextActive]}>{val === 1.0 ? "1.0x (Normal)" : `${val}x`}</Text>{speed === val && <Check size={20} color={nothing.red} />}</Pressable>)}</View></Pressable></Modal>
+    <Modal visible={activePanel === "speed"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.playbackSpeed")}</Text>{[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => <Pressable key={val} style={[styles.modalItem, speed === val && styles.modalItemActive]} onPress={() => { setSpeed(val); lockedSpeed.current = val; setActivePanel(null); }}><Text style={[styles.modalItemText, speed === val && styles.modalItemTextActive]}>{val === 1.0 ? "1.0x (Normal)" : `${val}x`}</Text>{speed === val && <Check size={20} color="#3985F5" />}</Pressable>)}</View></Pressable></Modal>
 
-    <Modal visible={activePanel === "server"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><Text style={styles.modalTitle}>{t("player.selectServer")}</Text>{providers.sub.length > 0 && providers.dub.length > 0 ? <View style={styles.languageRow}>{(["sub", "dub"] as Language[]).map((item) => <Pressable key={item} onPress={() => selectLanguage(item)} style={[styles.language, language === item && styles.languageActive]}><Text style={[styles.languageText, language === item && styles.languageTextActive]}>{item === "sub" ? `SUB · ${providers.sub.length}` : `DUB · ${providers.dub.length}`}</Text></Pressable>)}</View> : null}
-      {selectableProviders.length ? selectableProviders.map(({ provider, index }) => <Pressable key={provider.id} onPress={() => { selectServer(index); setActivePanel(null); }} style={[styles.modalItem, index === serverIndex && styles.modalItemActive]}><Text style={[styles.modalItemText, index === serverIndex && styles.modalItemTextActive]}>{provider.label}</Text>{index === serverIndex && <Check size={20} color={nothing.red} />}</Pressable>) : <Text style={styles.modalItemSub}>Looking for a working server…</Text>}</View></Pressable></Modal>
+    <Modal visible={activePanel === "server"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.selectServer")}</Text>{providers.sub.length > 0 && providers.dub.length > 0 ? <View style={styles.languageRow}>{(["sub", "dub"] as Language[]).map((item) => <Pressable key={item} onPress={() => selectLanguage(item)} style={[styles.language, language === item && styles.languageActive]}><Text style={[styles.languageText, language === item && styles.languageTextActive]}>{item === "sub" ? `SUB · ${providers.sub.length}` : `DUB · ${providers.dub.length}`}</Text></Pressable>)}</View> : null}
+      {selectableProviders.length ? selectableProviders.map(({ provider, index }) => <Pressable key={provider.id} onPress={() => { selectServer(index); setActivePanel(null); }} style={[styles.modalItem, index === serverIndex && styles.modalItemActive]}><Text style={[styles.modalItemText, index === serverIndex && styles.modalItemTextActive]}>{provider.label}</Text>{index === serverIndex && <Check size={20} color="#3985F5" />}</Pressable>) : <Text style={styles.modalItemSub}>Looking for a working server…</Text>}</View></Pressable></Modal>
 
     {/* Download quality picker: backend per-quality file links for this language */}
-    <Modal visible={activePanel === "download"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><Text style={styles.modalTitle}>DOWNLOAD · {language.toUpperCase()} · EP {episode}</Text>
+    <Modal visible={activePanel === "download"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>DOWNLOAD · {language.toUpperCase()} · EP {episode}</Text>
       {backendDownloadOptions.map((option) => <Pressable key={option.url} onPress={() => { void openBackendDownload(option); }} style={styles.modalItem}><View style={{ flex: 1 }}><Text style={styles.modalItemText}>{option.quality ?? option.label}</Text>{option.quality ? <Text style={styles.modalItemSub}>{option.label}</Text> : null}</View><Download size={18} color={nothing.muted} /></Pressable>)}
     </View></Pressable></Modal>
 
     {/* Chapter List Modal */}
-    <Modal visible={activePanel === "chapters" && !playerLocked} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.chapterModalSheet}>
+    <Modal visible={activePanel === "chapters" && !playerLocked} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.chapterModalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><Text style={styles.modalTitle}>{t("player.chapters")}</Text><Pressable onPress={() => setActivePanel(null)}><X size={20} color={nothing.muted} /></Pressable></View>
       {duration <= 0 ? <Text style={styles.chapterEmptyText}>No duration data available yet.</Text> : (
         <View style={styles.chapterList}>
@@ -2739,7 +2763,7 @@ export default function WatchScreen() {
                   </View>
                   <View style={styles.chapterItemRight}>
                     <Text style={styles.chapterDuration}>{formatTime(durationSec)}</Text>
-                    {isActive ? <Play size={16} color={nothing.red} /> : isPast ? <Check size={16} color={nothing.dim} /> : <CaretRight size={16} color={nothing.muted} />}
+                    {isActive ? <Play size={16} color="#3985F5" /> : isPast ? <Check size={16} color={nothing.dim} /> : <CaretRight size={16} color={nothing.muted} />}
                   </View>
                 </Pressable>
               );
@@ -2754,7 +2778,7 @@ export default function WatchScreen() {
 // ── Styles ──
 const ps = StyleSheet.create({
   videoShellFullscreen: { position: "absolute", zIndex: 50, elevation: 50, top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", aspectRatio: undefined, backgroundColor: "#000000", justifyContent: "center" },
-  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 264, maxWidth: "84%", borderRadius: 18, backgroundColor: "rgba(244,248,255,0.96)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 12 },
+  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 264, maxWidth: "84%", borderRadius: 18, backgroundColor: "rgba(245,249,255,0.88)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 12 },
   settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#B8D5F5" },
   settingsHeaderText: { color: "#142B4B", fontSize: 13, fontWeight: "900", letterSpacing: 0.3 },
   settingsContent: { padding: 8, paddingBottom: 10, gap: 1 },
@@ -2774,24 +2798,29 @@ const ps = StyleSheet.create({
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   invalidWrap: { flex: 1, alignItems: "flex-start", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
-  invalidTitle: { color: "#FFFFFF", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
+  invalidTitle: { color: "#172B45", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
   top: { minHeight: 52, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   closeButton: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: nothing.line, borderRadius: 6 },
   topCopy: { flex: 1, gap: 2 },
   title: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", lineHeight: 22, letterSpacing: -0.5 },
   episodeLabel: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
-  videoShell: { width: "100%", aspectRatio: 16 / 9, backgroundColor: "#142B4B", overflow: "hidden", position: "relative", borderBottomWidth: 2, borderBottomColor: "#B8D5F5" },
+  videoShell: { width: "100%", maxWidth: 1440, alignSelf: "center", aspectRatio: 16 / 9, backgroundColor: "#142B45", overflow: "hidden", position: "relative", borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 20, elevation: 4, shadowColor: "#142B45", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14 },
   video: { flex: 1 },
   gestureOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
   embedChrome: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 5, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.55)" },
   embedFrame: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 6 },
+  loadingHeader: { position: "absolute", zIndex: 4, top: 8, left: 8, right: 8, minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,0.86)", backgroundColor: "rgba(245,249,255,0.86)", overflow: "hidden", elevation: 5 },
+  loadingBackButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: "#3985F5", borderWidth: 1, borderColor: "#FFFFFF" },
+  loadingHeaderCopy: { flex: 1, minWidth: 0, gap: 2 },
+  loadingHeaderTitle: { color: "#172B45", fontSize: 13, fontWeight: "900" },
+  loadingHeaderEpisode: { color: "#71839A", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
   embedTopBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%" },
   embedBottomDeck: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%" },
   embedBottomInfo: { flex: 1, flexShrink: 1, marginRight: 6 },
   embedBottomLabel: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "700", letterSpacing: 0.3 },
   miniProgress: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2, backgroundColor: "rgba(255,255,255,0.22)", zIndex: 2 },
   miniProgressBuffered: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: "rgba(255,255,255,0.35)" },
-  miniProgressPlayed: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: "#FF4D4D" },
+  miniProgressPlayed: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: "#3985F5" },
   statusToast: { position: "absolute", bottom: 28, alignSelf: "center", zIndex: 14, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   statusToastText: { color: "#FFF", fontSize: 11, fontWeight: "600", letterSpacing: 0.2 },
   subtitleWrapper: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", alignItems: "center", paddingBottom: 68, zIndex: 1 },
@@ -2805,16 +2834,16 @@ const styles = StyleSheet.create({
   scrimTopSoft: { position: "absolute", top: 0, left: 0, right: 0, height: 96, backgroundColor: "rgba(0,0,0,0.10)" },
   scrimBottomMain: { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.22)" },
   scrimBottomSoft: { position: "absolute", bottom: 0, left: 0, right: 0, height: 110, backgroundColor: "rgba(0,0,0,0.10)" },
-  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 14, backgroundColor: "rgba(234,244,255,0.88)", borderWidth: 1, borderColor: "rgba(255,255,255,0.85)", elevation: 5 },
+  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(245,249,255,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.88)", elevation: 7, shadowColor: "#142B45", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10 },
   playerTitle: { flex: 1, flexShrink: 1, color: "#142B4B", fontSize: 13, fontWeight: "800", marginLeft: 8, marginRight: 6 },
   topRightRow: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
-  iconButton: { width: 34, height: 34, padding: 2, justifyContent: "center", alignItems: "center", flexShrink: 0, borderRadius: 11, backgroundColor: "#2878F0", borderWidth: 1, borderColor: "#FFFFFF", elevation: 2 },
-  iconButtonActive: { backgroundColor: "#78BFFF", borderColor: "#2878F0", borderRadius: 11 },
-  orientationBadge: { backgroundColor: "rgba(255,77,77,0.85)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
+  iconButton: { width: 38, height: 38, padding: 2, justifyContent: "center", alignItems: "center", flexShrink: 0, borderRadius: 13, backgroundColor: "#3985F5", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 3 },
+  iconButtonActive: { backgroundColor: "#8CCAFF", borderColor: "#3985F5", borderRadius: 13 },
+  orientationBadge: { backgroundColor: "rgba(57,133,245,0.9)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
   orientationBadgeText: { color: "#FFFFFF", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
   subPillBadge: { backgroundColor: "#2878F0", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, flexShrink: 0 },
   subPillBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", letterSpacing: 0.2, textTransform: "uppercase" },
-  bottomDeck: { gap: 5, width: "100%", paddingHorizontal: 9, paddingVertical: 7, borderRadius: 16, backgroundColor: "rgba(20,43,75,0.72)", borderWidth: 1, borderColor: "rgba(234,244,255,0.45)" },
+  bottomDeck: { gap: 5, width: "100%", paddingHorizontal: 9, paddingVertical: 7, borderRadius: 18, overflow: "hidden", backgroundColor: "rgba(20,43,69,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.42)", elevation: 8, shadowColor: "#142B45", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.24, shadowRadius: 12 },
   timelineRow: { flexDirection: "row", alignItems: "center", gap: 4, width: "100%" },
   timeLabel: { color: "#FFF", fontSize: 11, fontWeight: "600", minWidth: 34, textAlign: "center", flexShrink: 0, fontVariant: ["tabular-nums"] },
   progressBarTrack: { flex: 1, height: 16, justifyContent: "center" },
@@ -2827,13 +2856,19 @@ const styles = StyleSheet.create({
   dragPreviewText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actionRail: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", width: "100%" },
   railSide: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
+  railSideCompact: { gap: 0, minWidth: 0 },
+  railCenterCompact: { gap: 0 },
+  actionRailCompact: { gap: 0 },
+  railBtnCompact: { width: 24 },
   railSideRight: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, flexShrink: 0 },
   railCenter: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 1, justifyContent: "center" },
   railBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0 },
   railBtnDisabled: { opacity: 0.35 },
   downloadBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0, gap: 0 },
   bigPlayButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#78BFFF", borderWidth: 2, borderColor: "#FFFFFF", justifyContent: "center", alignItems: "center", flexShrink: 0, marginHorizontal: 4, elevation: 5 },
-  bigPlayButtonFullscreen: { width: 56, height: 56, borderRadius: 28 },
+  bigPlayButtonFullscreen: { width: 58, height: 58, borderRadius: 20 },
+  bigPlayButtonCompact: { width: 44, height: 44, borderRadius: 15 },
+  playerButtonPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
   hudBadge: { position: "absolute", top: 20, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 5, zIndex: 10 },
   hudPill: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 8, zIndex: 10 },
   hudText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
@@ -2844,41 +2879,41 @@ const styles = StyleSheet.create({
   upNextCard: { position: "absolute", bottom: 120, right: 12, zIndex: 15, elevation: 6, flexDirection: "row", gap: 8, alignItems: "center", maxWidth: 260, backgroundColor: "rgba(9,9,9,0.88)", borderRadius: 8, padding: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   upNextPoster: { width: 44, height: 62, borderRadius: 4, backgroundColor: nothing.raised },
   upNextCopy: { flex: 1, gap: 3 },
-  upNextKicker: { color: nothing.red, fontSize: 10, fontWeight: "800", letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
+  upNextKicker: { color: "#8CCAFF", fontSize: 10, fontWeight: "800", letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
   upNextTitle: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   upNextRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  upNextPlay: { minHeight: 30, paddingHorizontal: 10, justifyContent: "center", borderRadius: 4, backgroundColor: nothing.red },
+  upNextPlay: { minHeight: 30, paddingHorizontal: 10, justifyContent: "center", borderRadius: 4, backgroundColor: "#3985F5" },
   upNextPlayText: { color: "#FFF", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
   upNextDismiss: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   skipButtonText: { color: nothing.black, fontSize: 11, fontWeight: "800", letterSpacing: 0.3, textTransform: "uppercase" },
   skipCountdown: { color: nothing.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
   lockedPill: { position: "absolute", bottom: 32, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", zIndex: 15 },
-  lockedPillArmed: { borderColor: nothing.red },
+  lockedPillArmed: { borderColor: "#8CCAFF" },
   bufferingVeil: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", zIndex: 2 },
   lockedText: { color: "#FFF", fontSize: 11, fontWeight: "600" },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(20,43,75,0.30)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "rgba(244,248,255,0.96)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, gap: 3, borderWidth: 1, borderColor: "#B8D5F5", elevation: 12 },
+  modalSheet: { backgroundColor: "rgba(245,249,255,0.88)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, gap: 3, borderWidth: 1, borderColor: "#C6DDF5", overflow: "hidden", elevation: 12 },
   modalTitle: { color: "#142B4B", fontSize: 14, fontWeight: "900", letterSpacing: 0.2, marginBottom: 6, textTransform: "uppercase" },
   modalItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 9, borderBottomWidth: 1, borderBottomColor: "#DCEBFA", borderRadius: 10 },
   modalItemActive: { backgroundColor: "#EAF4FF" },
   modalItemText: { color: "#425B78", fontSize: 13, fontWeight: "700" },
   modalItemSub: { color: "#71839D", fontSize: 11, fontWeight: "600", marginTop: 2 },
   modalItemTextActive: { color: "#2878F0", fontWeight: "900" },
-  chapterModalSheet: { backgroundColor: "rgba(9,9,9,0.96)", borderTopLeftRadius: 2, borderTopRightRadius: 2, padding: 14, gap: 4, maxHeight: "70%", borderWidth: 1, borderColor: "rgba(255,255,255,0.06)" },
+  chapterModalSheet: { backgroundColor: "rgba(245,249,255,0.96)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, gap: 4, maxHeight: "70%", borderWidth: 1, borderColor: "#C6DDF5", overflow: "hidden" },
   chapterList: { gap: 1 },
   chapterItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
-  chapterItemActive: { backgroundColor: "rgba(255,77,77,0.06)" },
-  chapterItemPast: { opacity: 0.45 },
+  chapterItemActive: { backgroundColor: "#EAF5FF" },
+  chapterItemPast: { opacity: 0.58 },
   chapterItemLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-  chapterDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: nothing.dim },
-  chapterDotActive: { backgroundColor: nothing.red },
-  chapterDotPast: { backgroundColor: nothing.green },
+  chapterDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#B8D5F5" },
+  chapterDotActive: { backgroundColor: "#3985F5" },
+  chapterDotPast: { backgroundColor: "#71839A" },
   chapterInfo: { gap: 1 },
-  chapterName: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
-  chapterNameActive: { color: nothing.red },
-  chapterTimestamp: { color: nothing.muted, fontSize: 9, fontWeight: "500", fontVariant: ["tabular-nums"] },
+  chapterName: { color: "#172B45", fontSize: 11, fontWeight: "700" },
+  chapterNameActive: { color: "#3985F5" },
+  chapterTimestamp: { color: "#71839A", fontSize: 9, fontWeight: "500", fontVariant: ["tabular-nums"] },
   chapterItemRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  chapterDuration: { color: nothing.dim, fontSize: 9, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  chapterDuration: { color: "#71839A", fontSize: 9, fontWeight: "600", fontVariant: ["tabular-nums"] },
   chapterEmptyText: { color: nothing.muted, fontSize: 11, textAlign: "center", paddingVertical: 12 },
   contextActions: { alignSelf: "flex-end", alignItems: "flex-end", gap: 4 },
   videoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "#090909" },
@@ -2889,39 +2924,54 @@ const styles = StyleSheet.create({
   thumbnailEpisode: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
   thumbnailTitle: { color: "#FFFFFF", fontSize: 14, lineHeight: 18, fontWeight: "900" },
   thumbnailStatus: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  placeholderText: { color: nothing.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
+  placeholderText: { color: "#71839A", fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
   errorText: { color: nothing.red, fontSize: 11, fontWeight: "600", textAlign: "center", paddingHorizontal: 20 },
   playerOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "space-between", padding: 8 },
   pointerBoxNone: { pointerEvents: "box-none" },
   pointerNone: { pointerEvents: "none" },
-  th3Section: { gap: 12, padding: 15, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#B8D5F5", borderRadius: 22, elevation: 3 },
+  bentoTopRow: { gap: 14 },
+  bentoTopRowWide: { flexDirection: "row", alignItems: "stretch" },
+  bentoInfoWide: { flex: 1.35 },
+  providerSectionWide: { flex: 0.85, justifyContent: "center" },
+  th3Section: { gap: 13, padding: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 23, elevation: 3, shadowColor: "#142B45", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 9 },
+  providerSection: { gap: 13, padding: 16, backgroundColor: "#EAF5FF", borderWidth: 1.5, borderColor: "#3985F5", borderRadius: 23, elevation: 3, shadowColor: "#3985F5", shadowOffset: { width: 3, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
+  episodesSection: { gap: 13, padding: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 23, elevation: 2 },
+  bentoSectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  bentoEyebrow: { color: "#3985F5", fontSize: 9, fontWeight: "900", letterSpacing: 1, marginBottom: 3 },
+  liveIndicator: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#3985F5" },
+  liveText: { color: "#3985F5", fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
+  providerLanguageNote: { color: "#71839A", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+  episodeCountBadge: { color: "#172B45", fontSize: 10, fontWeight: "900", paddingHorizontal: 9, paddingVertical: 6, overflow: "hidden", borderRadius: 9, borderWidth: 1, borderColor: "#C6DDF5", backgroundColor: "#EAF5FF" },
   watchAnimeCard: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 17, backgroundColor: "#F4F8FF" },
   watchAnimePoster: { width: 58, height: 76, borderRadius: 11, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF4FF" },
   watchAnimeCopy: { flex: 1, gap: 4 },
-  watchAnimeEyebrow: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+  watchAnimeEyebrow: { color: "#3985F5", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
   watchAnimeTitle: { color: "#142B4B", fontSize: 17, lineHeight: 21, fontWeight: "900" },
   watchAnimeEpisode: { color: "#71839D", fontSize: 12, fontWeight: "600" },
   watchMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 4 },
-  watchMetaBadge: { color: "#2878F0", fontSize: 10, fontWeight: "900", paddingHorizontal: 7, paddingVertical: 4, overflow: "hidden", borderRadius: 7, backgroundColor: "#EAF4FF" },
+  watchMetaBadge: { color: "#3985F5", fontSize: 10, fontWeight: "900", paddingHorizontal: 7, paddingVertical: 4, overflow: "hidden", borderRadius: 7, backgroundColor: "#EAF4FF" },
   watchGenreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   watchGenreBadge: { color: "#425B78", fontSize: 11, fontWeight: "700", paddingHorizontal: 9, paddingVertical: 6, overflow: "hidden", borderRadius: 9, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
-  watchSynopsis: { gap: 5, padding: 12, borderWidth: 1, borderColor: "#D5E7F9", borderRadius: 14, backgroundColor: "#F4F8FF" },
+  watchSynopsis: { gap: 7, padding: 13, borderWidth: 1, borderColor: "#D5E7F9", borderRadius: 15, backgroundColor: "#F5F9FF" },
+  synopsisToggle: { alignSelf: "flex-start", minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 5 },
+  synopsisToggleText: { color: "#3985F5", fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
   watchSynopsisLabel: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
   watchSynopsisText: { color: "#425B78", fontSize: 12, lineHeight: 18 },
   watchEpisodeNav: { flexDirection: "row", gap: 9 },
   watchEpisodeButton: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1.5, borderColor: "#2878F0", borderRadius: 13, backgroundColor: "#FFFFFF" },
-  watchEpisodeNext: { backgroundColor: "#2878F0", borderColor: "#142B4B", elevation: 3 },
+  watchEpisodeNext: { backgroundColor: "#3985F5", borderColor: "#172B45", elevation: 3 },
   watchEpisodeDisabled: { opacity: 0.38 },
   watchEpisodeButtonText: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
   watchEpisodeNextText: { color: "#FFFFFF" },
   th3Watching: { fontSize: 16, fontWeight: "900", letterSpacing: -0.4, textAlign: "left", paddingVertical: 12, paddingHorizontal: 13, backgroundColor: "#EAF4FF", borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 15 },
-  th3WatchingGreen: { color: "#2878F0", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
+  th3WatchingGreen: { color: "#3985F5", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
   th3WatchingWhite: { color: "#142B4B", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
-  th3Tabs: { flexDirection: "row", gap: 10, borderBottomWidth: 1, borderBottomColor: "#DCEBFA" },
-  th3Tab: { flex: 1, alignItems: "center", paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: "transparent", marginBottom: -1 },
-  th3TabActive: { borderBottomColor: "#2878F0" },
+  th3Tabs: { flexDirection: "row", gap: 5, padding: 4, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 13, backgroundColor: "rgba(255,255,255,0.72)" },
+  th3Tab: { flex: 1, minHeight: 38, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: "transparent" },
+  th3TabActive: { backgroundColor: "#3985F5", borderWidth: 1, borderColor: "#172B45", elevation: 2 },
   th3TabText: { color: "#71839D", fontSize: 14, fontWeight: "700" },
-  th3TabTextActive: { color: "#2878F0", fontWeight: "900" },
+  th3TabTextActive: { color: "#FFFFFF", fontWeight: "900" },
   th3TabTextEmpty: { color: nothing.dim },
   th3Servers: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingVertical: 4 },
   th3Server: { minHeight: 36, paddingHorizontal: 14, justifyContent: "center", borderRadius: 12, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
@@ -2930,13 +2980,14 @@ const styles = StyleSheet.create({
   th3ServerTextActive: { color: "#FFFFFF", fontWeight: "900" },
   th3EpHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   th3EpTitle: { color: "#142B4B", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
-  th3EpSearch: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 10, height: 34, minWidth: 140, borderWidth: 1, borderColor: nothing.line, borderRadius: 8, backgroundColor: nothing.surface },
+  th3EpSearch: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, height: 40, minWidth: 130, flex: 1, maxWidth: 210, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 12, backgroundColor: "#FFFFFF" },
   th3EpSearchInput: { flex: 1, color: "#142B4B", fontSize: 12, paddingVertical: 0 },
   th3EpsRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  th3EpsText: { color: "#2878F0", fontFamily: nothing.mono, fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
+  th3EpsText: { color: "#3985F5", fontFamily: nothing.mono, fontSize: 11, fontWeight: "900", letterSpacing: 0.4 },
   th3Grid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   th3EpBtn: { width: 56, height: 56, alignItems: "center", justifyContent: "center", borderRadius: 14, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF", overflow: "hidden" },
-  th3EpBtnActive: { backgroundColor: "#78BFFF", borderColor: "#142B4B", borderWidth: 2, elevation: 3 },
+  th3EpBtnActive: { backgroundColor: "#8CCAFF", borderColor: "#172B45", borderWidth: 2, elevation: 4, shadowColor: "#3985F5", shadowOffset: { width: 3, height: 3 }, shadowOpacity: 0.18, shadowRadius: 0 },
+  cardButtonPressed: { transform: [{ scale: 0.96 }], opacity: 0.86 },
   th3EpBtnText: { color: "#71839D", fontFamily: nothing.mono, fontSize: 13, fontWeight: "800", zIndex: 1 },
   th3EpBtnTextActive: { color: "#142B4B", fontWeight: "900" },
   th3EpBtnFiller: { color: nothing.muted },
@@ -2947,11 +2998,11 @@ const styles = StyleSheet.create({
   errorAction: { paddingHorizontal: 12, paddingTop: 10 },
   errorCard: { gap: 6, padding: 12 },
   errorCopy: { color: nothing.muted, fontSize: 12, lineHeight: 16 },
-  scroll: { padding: 14, gap: 14, backgroundColor: "#F4F8FF", paddingBottom: 36 },
-  episodeLoading: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 7, borderTopWidth: 1, borderTopColor: nothing.line },
-  episodeLoadingText: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  scroll: { flexGrow: 1, width: "100%", maxWidth: 1240, alignSelf: "center", paddingHorizontal: 14, paddingTop: 14, gap: 14, backgroundColor: "#F5F9FF", paddingBottom: 40 },
+  episodeLoading: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 7, borderTopWidth: 1, borderTopColor: "#C6DDF5" },
+  episodeLoadingText: { color: "#71839A", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
   episodePager: { flexDirection: "row", alignItems: "center", gap: 6 },
-  episodePagerButton: { flex: 1, minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 11, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF4FF" },
+  episodePagerButton: { flex: 1, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 12, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF5FF" },
   episodePagerDisabled: { opacity: 0.3 },
   episodePagerText: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.3 },
   episodePagerIndicator: { color: "#71839D", fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
@@ -2969,36 +3020,41 @@ const styles = StyleSheet.create({
   ratingChoiceTextActive: { color: "#FFFFFF" },
   languageRow: { flexDirection: "row", gap: 4 },
   language: { minWidth: 48, minHeight: 28, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, borderRadius: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "transparent" },
-  languageActive: { borderColor: nothing.red, backgroundColor: "rgba(255,77,77,0.06)" },
+  languageActive: { borderColor: "#3985F5", backgroundColor: "#EAF5FF" },
   languageDisabled: { opacity: 0.3 },
   languageText: { color: "rgba(255,255,255,0.5)", fontFamily: nothing.mono, fontSize: 9, fontWeight: "900", letterSpacing: 0.2 },
-  languageTextActive: { color: nothing.red },
-  providerDiscovery: { width: "100%", maxWidth: 260, alignItems: "center", gap: 10 },
+  languageTextActive: { color: "#3985F5" },
+  glassCubeStage: { width: 58, height: 58, alignItems: "center", justifyContent: "center" },
+  glassCube: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(57,133,245,0.55)", backgroundColor: "rgba(140,202,255,0.42)", elevation: 9, shadowColor: "#3985F5", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.24, shadowRadius: 10 },
+  glassCubeFace: { position: "absolute", top: 4, left: 5, right: 5, height: 10, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.84)" },
+  glassCubeCore: { width: 13, height: 13, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.58)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)" },
+  providerDiscovery: { width: "100%", maxWidth: 260, alignItems: "center", gap: 13, padding: 20, borderRadius: 22, borderWidth: 1, borderColor: "rgba(198,221,245,0.8)", backgroundColor: "rgba(255,255,255,0.82)", elevation: 8, shadowColor: "#3985F5", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 18 },
   providerDiscoveryCopy: { alignItems: "center", gap: 3 },
-  providerDiscoveryTitle: { color: "#FFFFFF", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
-  providerDiscoveryDetail: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
+  providerDiscoveryTitle: { color: "#172B45", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
+  providerDiscoveryDetail: { color: "#71839A", fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
 });
 
 // Memoized: the watch screen re-renders every second (progress clock), and
 // re-diffing 50+ episode buttons per tick was the largest avoidable cost.
 // Track 5.2: FlatList virtualization when total episodes > 100 (e.g. One Piece).
-const EpisodeGrid = memo(function EpisodeGrid({ episodes, activeEpisode, totalPages, page, onPageChange, onSelect, onInfo, totalEpisodeCount = 0 }: { episodes: Episode[]; activeEpisode: number; totalPages: number; page: number; onPageChange: (update: (value: number) => number) => void; onSelect: (n: number) => void; onInfo: (n: number) => void; totalEpisodeCount?: number }) {
+const EpisodeGrid = memo(function EpisodeGrid({ episodes, activeEpisode, totalPages, page, onPageChange, onSelect, onInfo, totalEpisodeCount = 0, columns = 5 }: { episodes: Episode[]; activeEpisode: number; totalPages: number; page: number; onPageChange: (update: (value: number) => number) => void; onSelect: (n: number) => void; onInfo: (n: number) => void; totalEpisodeCount?: number; columns?: number }) {
   // For shows with >100 total episodes, use a virtualized FlatList for the
   // grid to avoid diffing hundreds of buttons per tick. Small episode counts
   // keep the cheaper View.map path.
   if (totalEpisodeCount > 100) {
     return <>
       <FlatList
+        key={`episode-grid-${columns}`}
         data={episodes}
         keyExtractor={(item) => String(item.number)}
-        numColumns={5}
+        numColumns={columns}
         scrollEnabled={false}
         windowSize={3}
         maxToRenderPerBatch={8}
         removeClippedSubviews
         renderItem={({ item }) => {
           const active = item.number === activeEpisode;
-          return <Pressable key={item.number} accessibilityRole="button" accessibilityLabel={`Episode ${item.number}${item.title ? `: ${item.title}` : ""}`} accessibilityHint={active ? "Currently playing" : "Double tap to play this episode"} onPress={() => onSelect(item.number)} onLongPress={() => onInfo(item.number)} style={[styles.th3EpBtn, active && styles.th3EpBtnActive]}>
+          return <Pressable key={item.number} accessibilityRole="button" accessibilityLabel={`Episode ${item.number}${item.title ? `: ${item.title}` : ""}`} accessibilityHint={active ? "Currently playing" : "Double tap to play this episode"} onPress={() => onSelect(item.number)} onLongPress={() => onInfo(item.number)} style={({ pressed }) => [styles.th3EpBtn, active && styles.th3EpBtnActive, pressed && styles.cardButtonPressed]}>
             <Text style={[styles.th3EpBtnText, active ? styles.th3EpBtnTextActive : item.isFiller ? styles.th3EpBtnFiller : null]}>{item.number}</Text>
           </Pressable>;
         }}
@@ -3007,19 +3063,46 @@ const EpisodeGrid = memo(function EpisodeGrid({ episodes, activeEpisode, totalPa
     </>;
   }
   return <>
-    <View style={styles.th3Grid}>{episodes.map((item) => { const active = item.number === activeEpisode; return <Pressable key={item.number} accessibilityRole="button" accessibilityLabel={`Episode ${item.number}${item.title ? `: ${item.title}` : ""}`} accessibilityHint={active ? "Currently playing" : "Double tap to play this episode"} onPress={() => onSelect(item.number)} onLongPress={() => onInfo(item.number)} style={[styles.th3EpBtn, active && styles.th3EpBtnActive]}>
+    <View style={styles.th3Grid}>{episodes.map((item) => { const active = item.number === activeEpisode; return <Pressable key={item.number} accessibilityRole="button" accessibilityLabel={`Episode ${item.number}${item.title ? `: ${item.title}` : ""}`} accessibilityHint={active ? "Currently playing" : "Double tap to play this episode"} onPress={() => onSelect(item.number)} onLongPress={() => onInfo(item.number)} style={({ pressed }) => [styles.th3EpBtn, active && styles.th3EpBtnActive, pressed && styles.cardButtonPressed]}>
       <Text style={[styles.th3EpBtnText, active ? styles.th3EpBtnTextActive : item.isFiller ? styles.th3EpBtnFiller : null]}>{item.number}</Text>
     </Pressable>; })}</View>
     {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={"#FFFFFF"} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={"#FFFFFF"} /></Pressable></View> : null}
   </>;
 });
 
+function GlassCube() {
+  const spin = useRef(new Animated.Value(0)).current;
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((value) => { if (mounted) setReducedMotion(value); }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
+    return () => { mounted = false; subscription.remove(); };
+  }, []);
+  useEffect(() => {
+    if (reducedMotion) { spin.stopAnimation(); spin.setValue(0.18); return; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(spin, { toValue: 1, duration: 1500, useNativeDriver: true }),
+      Animated.timing(spin, { toValue: 0, duration: 1500, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [reducedMotion, spin]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["-12deg", "12deg"] });
+  const translateY = spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -5, 0] });
+  return <View style={styles.glassCubeStage} accessibilityLabel="Finding streaming providers" accessibilityRole="progressbar">
+    <Animated.View style={[styles.glassCube, { transform: [{ perspective: 500 }, { rotateX: rotate }, { rotateY: rotate }, { translateY }] }]}>
+      <View style={styles.glassCubeFace} /><View style={styles.glassCubeCore} />
+    </Animated.View>
+  </View>;
+}
+
 function ProviderDiscoveryLoader({ attempt }: { attempt: number }) {
   return <View style={styles.providerDiscovery}>
-    <ActivityIndicator size="small" color={nothing.red} />
+    <GlassCube />
     <View style={styles.providerDiscoveryCopy}>
       <Text style={styles.providerDiscoveryTitle}>FINDING PROVIDERS</Text>
-      <Text style={styles.providerDiscoveryDetail}>CHECKING SERVERS</Text>
+      <Text style={styles.providerDiscoveryDetail}>{attempt > 1 ? `CHECKING SERVERS · RETRY ${attempt}` : "CHECKING SERVERS"}</Text>
     </View>
   </View>;
 }
