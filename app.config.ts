@@ -100,6 +100,7 @@ const config: ExpoConfig = {
     "expo-font",
     "expo-web-browser",
     ["react-native-video", { enableAndroidPictureInPicture: true }],
+    ["expo-navigation-bar", { enforceContrast: false, hidden: false, style: "dark" }],
     ["expo-screen-orientation", { initialOrientation: "DEFAULT" }],
     ["expo-secure-store", { configureAndroidBackup: false }],
     ["expo-notifications", { color: "#1677FF" }],

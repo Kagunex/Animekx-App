@@ -8,7 +8,8 @@ import { regenerateRandomPages, sessionRandomPages, shouldFallbackToFirstPages }
 import type { Anime } from "@/lib/types";
 import { nsfwFilterParam, useNsfwPreference } from "@/lib/nsfw-preference";
 import { animeTitle } from "@/lib/types";
-import { ErrorState, LoadingState } from "@/components/async-state";
+import { EmptyState, ErrorState } from "@/components/async-state";
+import { AnimeDiscoverySkeleton } from "@/components/skeleton";
 import { nothing } from "@/components/nothing-ui";
 import { NativeHeader, NativeScreen } from "@/components/screen";
 import { AppIcon } from "@/components/app-icon";
@@ -119,7 +120,7 @@ export default function RandomScreen() {
       <NativeHeader eyebrow="Animekz" title="Random Anime" />
 
       {pool.isPending && !anime ? (
-        <LoadingState label="Finding something you might like" />
+        <AnimeDiscoverySkeleton />
       ) : pool.isError && !anime ? (
         <ErrorState
           message={pool.error?.message ?? "We could not pick an anime right now."}
@@ -172,7 +173,7 @@ export default function RandomScreen() {
           </View>
         </Animated.View>
       ) : (
-        <LoadingState label="Finding something you might like" />
+        <EmptyState label="No anime are available to pick right now." action={{ label: "Try again", onPress: () => void pool.refetch() }} />
       )}
     </NativeScreen>
   );

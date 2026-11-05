@@ -22,7 +22,8 @@ import {
 import { searchCommitDelayMs } from "@/lib/search-input";
 import { nsfwFilterParam, useNsfwPreference } from "@/lib/nsfw-preference";
 import { animeTitle } from "@/lib/types";
-import { ErrorState, LoadingState, EmptyState } from "@/components/async-state";
+import { ErrorState, EmptyState } from "@/components/async-state";
+import { SearchResultsSkeleton } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import { DotLabel, nothing } from "@/components/nothing-ui";
 import { NativeScreen } from "@/components/screen";
@@ -450,13 +451,7 @@ export default function SearchScreen() {
           </View>
         </ScrollView>
       ) : waitingForInput || results.isPending ? (
-        <LoadingState
-          label={
-            isCategoryMode
-              ? `Loading ${categoryLabel} anime`
-              : `Searching for "${normalizedInput}"`
-          }
-        />
+        <SearchResultsSkeleton />
       ) : results.isError || !results.data ? (
         <ErrorState
           message={results.error?.message ?? "Search is unavailable."}

@@ -189,7 +189,7 @@ export default function OAuthCallback() {
       <View style={styles.container}>
         {status === "processing" && (
           <>
-            <ActivityIndicator size="large" color="#F6F6F2" />
+            <ActivityIndicator size="large" color="#3985F5" />
             <Text style={[styles.message, styles.processingMessage]}>
               Completing authentication...
             </Text>
@@ -223,7 +223,7 @@ export default function OAuthCallback() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F5FAFF" },
   container: { flex: 1, alignItems: "center", justifyContent: "center", gap: 16, padding: 20, backgroundColor: "#F5FAFF" },
-  message: { color: "#F6F6F2", fontSize: 16, lineHeight: 24, textAlign: "center" },
+  message: { color: "#172B45", fontSize: 16, lineHeight: 24, textAlign: "center" },
   processingMessage: { marginTop: 16 },
   errorTitle: { marginBottom: 8, color: "#4BA3E8", fontSize: 20, fontWeight: "700", lineHeight: 28, textAlign: "center" },
 });

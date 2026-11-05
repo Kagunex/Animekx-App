@@ -21,7 +21,8 @@ import {
 import { nsfwFilterParam, useNsfwPreference } from "@/lib/nsfw-preference";
 import { animeTitle } from "@/lib/types";
 import { usePrefetchAnime } from "@/lib/prefetch";
-import { ErrorState, LoadingState, EmptyState } from "@/components/async-state";
+import { ErrorState, EmptyState } from "@/components/async-state";
+import { SearchResultsSkeleton } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import { DotLabel, nothing } from "@/components/nothing-ui";
 import { NativeHeader, NativeScreen } from "@/components/screen";
@@ -553,7 +554,7 @@ export default function CatalogScreen() {
           showsVerticalScrollIndicator={false}
         />
       ) : waitingForInput || results.isPending ? (
-        <LoadingState label={`Searching for "${normalizedInput}"`} />
+        <SearchResultsSkeleton />
       ) : results.isError || !results.data ? (
         <ErrorState
           message={results.error?.message ?? "Search is unavailable."}

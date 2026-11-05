@@ -19,6 +19,7 @@ import {
 import { AnimeKzLogoMark } from "@/components/animekz-logo";
 import { NativeScreen } from "@/components/screen";
 import { AppIcon } from "@/components/app-icon";
+import { ProfileSkeleton } from "@/components/skeleton";
 
 function ProfileHeader() {
   return (
@@ -57,10 +58,7 @@ export default function ProfileScreen() {
     return (
       <NativeScreen tone="light">
         <ProfileHeader />
-        <View style={styles.loading}>
-          <AnimeKzLogoMark width={120} />
-          <Text style={styles.loadingText}>LOADING PROFILE</Text>
-        </View>
+        <ProfileSkeleton />
       </NativeScreen>
     );
   if (!auth.user)
@@ -381,13 +379,6 @@ const styles = StyleSheet.create({
     color: "#172B3A",
     fontSize: 13,
     fontWeight: "700",
-  },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
-  loadingText: {
-    color: "#71869A",
-    fontWeight: "800",
-    letterSpacing: 1,
-    fontSize: 10,
   },
   guestHero: {
     minHeight: 342,

@@ -107,7 +107,7 @@ legacyInputDefaults.defaultProps = {
   ].filter(Boolean),
 };
 
-export const unstable_settings = { anchor: "(tabs)" };
+export const unstable_settings = { anchor: "index" };
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -146,12 +146,14 @@ export default function RootLayout() {
           <StartupPrefetcher />
           <StatusBar style="dark" translucent backgroundColor="transparent" />
           <Stack
+            initialRouteName="index"
             screenOptions={{
               headerShown: false,
               animation: "fade",
               contentStyle: { backgroundColor: "#F5FAFF" },
             }}
           >
+            <Stack.Screen name="index" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="anime/[id]" />
             <Stack.Screen name="watch/[id]" />

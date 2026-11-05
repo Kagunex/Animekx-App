@@ -1,19 +1,21 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { parseRouteEpisode, parseRouteId } from "@/lib/route-params";
 import { AccessibilityInfo, ActivityIndicator, Alert, Animated, BackHandler, Dimensions, FlatList, LayoutChangeEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Video, { type OnProgressData, type OnLoadData, type OnBufferData, type VideoRef } from "react-native-video";
 import { useKeepAwake } from "expo-keep-awake";
 import { StatusBar } from "expo-status-bar";
 import * as ScreenOrientation from "expo-screen-orientation";
+import * as NavigationBar from "expo-navigation-bar";
 import * as Brightness from "expo-brightness";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
+import { SkeletonEpisode } from "@/components/skeleton";
 import ArrowLeft from "lucide-react-native/icons/arrow-left";
 import Gear from "lucide-react-native/icons/settings";
 import Speedometer from "lucide-react-native/icons/gauge";
@@ -270,11 +272,19 @@ export default function WatchScreen() {
   type ActivePanel = "settings" | "subtitles" | "speed" | "server" | "chapters" | "source" | "quality" | "download" | null;
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [manualFullscreen, setManualFullscreen] = useState(false);
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const safeAreaInsets = useSafeAreaInsets();
-  const compactPlayerControls = viewportWidth < 390 && !manualFullscreen;
+  const immersiveFullscreen = manualFullscreen || viewportWidth > viewportHeight;
+  const infoScrollRef = useRef<ScrollView | null>(null);
+  const infoScrollOffsetY = useRef(0);
+  const compactPlayerControls = viewportWidth < 390 && !immersiveFullscreen;
   const wideBento = viewportWidth >= 820;
   const episodeGridColumns = Math.max(3, Math.min(8, Math.floor((viewportWidth - 60) / 62)));
+  useEffect(() => {
+    if (immersiveFullscreen) return;
+    const frame = requestAnimationFrame(() => infoScrollRef.current?.scrollTo({ y: infoScrollOffsetY.current, animated: false }));
+    return () => cancelAnimationFrame(frame);
+  }, [immersiveFullscreen]);
   const [episodeSearch, setEpisodeSearch] = useState("");
   const [episodePage, setEpisodePage] = useState(0);
   const [progressWidth, setProgressWidth] = useState(0);
@@ -334,13 +344,38 @@ export default function WatchScreen() {
   const markedComplete = useRef(false);
   const sleepFired = useRef(false);
 
-  // Do NOT force landscape on load — the inline player must stay inline until
-  // the user taps fullscreen. Forcing LANDSCAPE here rotated the whole
-  // activity on first frame, which looked like "tap opens fullscreen with no UI"
-  // (controls start hidden, so the rotated video showed nothing).
-  // Fullscreen is entered explicitly via enterFullscreen() only.
-  useEffect(() => () => { if (Platform.OS !== "web") void ScreenOrientation.unlockAsync().catch(() => {}); }, []);
-
+  // Keep the inline portrait player until the user requests fullscreen. The
+  // device dimensions also promote naturally rotated landscape to immersive.
+  const systemUiGeneration = useRef(0);
+  const immersiveFullscreenRef = useRef(immersiveFullscreen);
+  immersiveFullscreenRef.current = immersiveFullscreen;
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === "android") {
+      const generation = ++systemUiGeneration.current;
+      void (async () => {
+        try {
+          if (generation === systemUiGeneration.current) {
+            await NavigationBar.setVisibilityAsync(immersiveFullscreenRef.current ? "hidden" : "visible");
+          }
+        } catch { /* Some Android navigation modes do not expose a hideable bar. */ }
+      })();
+    }
+    return () => {
+      systemUiGeneration.current += 1;
+      if (Platform.OS === "android") void NavigationBar.setVisibilityAsync("visible").catch(() => {});
+      if (Platform.OS !== "web") void ScreenOrientation.unlockAsync().catch(() => {});
+    };
+  }, []));
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const generation = ++systemUiGeneration.current;
+    void (async () => {
+      try {
+        if (generation !== systemUiGeneration.current) return;
+        await NavigationBar.setVisibilityAsync(immersiveFullscreenRef.current ? "hidden" : "visible");
+      } catch { /* Some Android navigation modes do not expose a hideable bar. */ }
+    })();
+  }, [immersiveFullscreen]);
   // Fullscreen entry forces landscape even with system auto-rotate OFF (a
   // sensor lock alone keeps portrait when the user holds the phone upright,
   // which read as "fullscreen does nothing"). Fixed normal landscape;
@@ -672,6 +707,13 @@ export default function WatchScreen() {
     if (futureRelease) { setLoadingServers(false); setError(FUTURE_RELEASE_MESSAGE); return; }
     if (invalidEpisode) { setLoadingServers(false); setError(`Episode ${episode} is not available.`); return; }
 
+    const discoveryTimeout = setTimeout(() => {
+      cancelled = true;
+      setLoadingServers(false);
+      setLoadingStream(false);
+      setError("Finding streaming providers took too long. Check your connection and retry.");
+    }, 45_000);
+
     // Cold backend scrapes (hentai / heavy titles) often return empty on the
     // first hits while providers spin up — poll with backoff the way the
     // website does instead of erroring after one quick retry.
@@ -690,6 +732,7 @@ export default function WatchScreen() {
       }
       setProviders({ sub: subs, dub: dubs });
       setLoadingServers(false);
+      clearTimeout(discoveryTimeout);
       // Auto-select: preferred language > available language
       const langKey = `aniraku.lang.${animeId}`;
       const preferred = await AsyncStorage.getItem(langKey).catch(() => null) as Language | null;
@@ -716,7 +759,7 @@ export default function WatchScreen() {
       else if (!subs.length && !dubs.length) { setError("We don't have streaming for this episode."); }
     };
     void fetchServers(0);
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(discoveryTimeout); };
   }, [animeId, animeQuery.isPending, canonicalEpisodes.length, clearEpisodePlayback, episode, episodeQuery.isPending, futureRelease, invalidEpisode]);
 
   // ── Stream loading ──
@@ -2176,10 +2219,10 @@ export default function WatchScreen() {
   }, [downloadMessage]);
 
   useEffect(() => {
-    if (!manualFullscreen || Platform.OS === "web") return;
+    if (!immersiveFullscreen || Platform.OS === "web") return;
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => { exitFullscreen(); return true; });
     return () => subscription.remove();
-  }, [manualFullscreen, exitFullscreen]);
+  }, [immersiveFullscreen, exitFullscreen]);
 
   useEffect(() => {
     if (!source || !showControls || activePanel) return;
@@ -2188,7 +2231,7 @@ export default function WatchScreen() {
     // second and would reset this timer forever, so chrome could never hide.
     const timer = setTimeout(() => setShowControls(false), 3_500);
     return () => clearTimeout(timer);
-  }, [showControls, activePanel, manualFullscreen, source?.url, dragPct]);
+  }, [showControls, activePanel, immersiveFullscreen, source?.url, dragPct]);
 
   // Controls fade instead of popping — 180ms opacity, cause → effect only.
   const controlsOpacity = useRef(new Animated.Value(0)).current;
@@ -2239,14 +2282,14 @@ export default function WatchScreen() {
     </NativeScreen>;
   }
 
-  return <NativeScreen scroll={false} style={styles.fill}>
-    <StatusBar hidden={manualFullscreen} />
+  return <SafeAreaView edges={immersiveFullscreen ? [] : ["top", "left", "right"]} style={[styles.screenRoot, immersiveFullscreen && styles.screenRootFullscreen]}>
+    <StatusBar hidden={immersiveFullscreen} style={immersiveFullscreen ? "light" : "dark"} />
 
     {/* ── Video Container + Gesture Layer ── */}
     {/* NOTE: panHandlers live on the sibling overlay below, NOT on this parent.
         Parent-level onStartShouldSetPanResponder stole Pressable touches and the
         native Video SurfaceView eats touches aimed behind it. */}
-    <View style={[styles.videoShell, { aspectRatio: videoAspectRatio }, manualFullscreen && ps.videoShellFullscreen]}>
+    <View style={[styles.videoShell, { aspectRatio: videoAspectRatio }, immersiveFullscreen && ps.videoShellFullscreen]}>
       {embedSource && !source ? <EmbedPlayer uri={embedSource.url} headers={nativePlaybackHeaders(playbackHeaders)} onError={() => handleProviderBlockedRef.current("player")} onLoaded={() => { embedReadyRef.current = true; }} /> : null}
       {source ? <Video key={activeProvider?.id ?? "default"} ref={videoRef} style={StyleSheet.absoluteFill} source={{ uri: videoSourceUri, headers: videoSourceHeaders, type: videoContentType, bufferConfig: videoBufferConfig }}
         paused={!isPlaying} rate={is2xSeeking ? 2.0 : speed} resizeMode="contain" muted={muted} volume={volume}
@@ -2284,7 +2327,7 @@ export default function WatchScreen() {
         </View> : error ? <Text style={styles.errorText}>{error}</Text> : <Text style={styles.placeholderText}>PREPARING VIDEO</Text>}
       </View>}
 
-      {!source && !embedSource ? <View style={styles.loadingHeader}>
+      {!source && !embedSource && !immersiveFullscreen ? <View style={styles.loadingHeader}>
         <BlurView pointerEvents="none" intensity={30} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.loadingBackButton} hitSlop={8}><ArrowLeft size={20} color="#FFFFFF" /></Pressable>
         <View style={styles.loadingHeaderCopy}><Text numberOfLines={1} style={styles.loadingHeaderTitle}>{title}</Text><Text style={styles.loadingHeaderEpisode}>EPISODE {episode}</Text></View>
@@ -2292,7 +2335,7 @@ export default function WatchScreen() {
 
       {/* ── Subtitle Layer (lifts above the bottom deck while chrome is
           visible so cues are never hidden behind the timeline). ── */}
-      {subtitlePrefs ? <View style={[styles.subtitleWrapper, showControls && !playerLocked ? styles.subtitleWrapperWithControls : manualFullscreen ? styles.subtitleWrapperFullscreen : null]} pointerEvents="none"><SubtitleRenderer cues={activeSubtitles} preferences={subtitlePrefs} /></View> : null}
+      {subtitlePrefs ? <View style={[styles.subtitleWrapper, showControls && !playerLocked ? styles.subtitleWrapperWithControls : immersiveFullscreen ? styles.subtitleWrapperFullscreen : null]} pointerEvents="none"><SubtitleRenderer cues={activeSubtitles} preferences={subtitlePrefs} /></View> : null}
 
       {/* ── Gesture overlay: sits ABOVE native Video, BELOW chrome.
           This is what makes tap-to-toggle reliable — touches no longer have to
@@ -2320,7 +2363,7 @@ export default function WatchScreen() {
           <View pointerEvents="none" style={styles.scrimBottomSoft} />
           <View pointerEvents="none" style={styles.scrimBottomMain} />
           <View style={styles.embedTopBar}>
-            <Pressable onPress={() => { if (manualFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
+            <Pressable onPress={() => { if (immersiveFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
               <ArrowLeft size={22} color="#FFF" />
             </Pressable>
             <Text style={styles.playerTitle} numberOfLines={1} ellipsizeMode="tail">{`${title} - Episode ${episode}`}</Text>
@@ -2334,8 +2377,8 @@ export default function WatchScreen() {
             <View style={styles.embedBottomInfo}>
               <Text style={styles.embedBottomLabel} numberOfLines={1}>{activeProvider ? `${activeProvider.label} · EMBEDDED STREAM` : "EMBEDDED STREAM"}</Text>
             </View>
-            <Pressable onPress={manualFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={manualFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={styles.iconButton} hitSlop={8}>
-              {manualFullscreen ? <ArrowsIn size={20} color="#FFF" /> : <ArrowsOut size={20} color="#FFF" />}
+            <Pressable onPress={immersiveFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={immersiveFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={styles.iconButton} hitSlop={8}>
+              {immersiveFullscreen ? <ArrowsIn size={20} color="#FFF" /> : <ArrowsOut size={20} color="#FFF" />}
             </Pressable>
           </View>
         </View>
@@ -2373,7 +2416,7 @@ export default function WatchScreen() {
           on the gesture layer. pointerEvents switches with visibility, so
           buttons still win hit-test when chrome is up. */}
       {source && controlsRendered ? (
-        <Animated.View style={[styles.controlsBackdrop, manualFullscreen && styles.controlsBackdropFullscreen, { opacity: controlsOpacity }]} pointerEvents={showControls && !playerLocked ? "box-none" : "none"}>
+        <Animated.View style={[styles.controlsBackdrop, immersiveFullscreen && styles.controlsBackdropFullscreen, { opacity: controlsOpacity }]} pointerEvents={showControls && !playerLocked ? "box-none" : "none"}>
           {/* Edge scrims — layered bands fake a gradient without adding a
               native dependency; keeps top/bottom rows readable like the
               reference player. */}
@@ -2384,7 +2427,7 @@ export default function WatchScreen() {
           {/* TOP BAR */}
           <View style={styles.topBar}>
             <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <Pressable onPress={() => { if (manualFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
+            <Pressable onPress={() => { if (immersiveFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
               <ArrowLeft size={22} color="#FFF" />
             </Pressable>
             <Text style={styles.playerTitle} numberOfLines={1} ellipsizeMode="tail">{`${title} - Episode ${episode}`}</Text>
@@ -2447,7 +2490,7 @@ export default function WatchScreen() {
                 <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !previousKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
                   <SkipBack size={20} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setIsPlaying((p) => !p); }} onLongPress={beginHoldSpeed} onPressOut={endHoldSpeed} delayLongPress={400} accessibilityRole="button" accessibilityLabel={isPlaying ? "Pause" : "Play"} accessibilityHint="Hold for 2x speed" style={({ pressed }) => [styles.bigPlayButton, compactPlayerControls && styles.bigPlayButtonCompact, manualFullscreen && styles.bigPlayButtonFullscreen, pressed && styles.playerButtonPressed]}>
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setIsPlaying((p) => !p); }} onLongPress={beginHoldSpeed} onPressOut={endHoldSpeed} delayLongPress={400} accessibilityRole="button" accessibilityLabel={isPlaying ? "Pause" : "Play"} accessibilityHint="Hold for 2x speed" style={({ pressed }) => [styles.bigPlayButton, compactPlayerControls && styles.bigPlayButtonCompact, immersiveFullscreen && styles.bigPlayButtonFullscreen, pressed && styles.playerButtonPressed]}>
                   {isPlaying ? <Pause size={26} color="#172B45" /> : <Play size={26} color="#172B45" style={{ marginLeft: 2 }} />}
                 </Pressable>
                 <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !nextKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
@@ -2478,8 +2521,8 @@ export default function WatchScreen() {
                     <PictureInPicture size={18} color="#FFF" />
                   </Pressable>
                 ) : null}
-                <Pressable onPress={manualFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={manualFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
-                  {manualFullscreen ? <ArrowsIn size={18} color="#FFF" /> : <ArrowsOut size={18} color="#FFF" />}
+                <Pressable onPress={immersiveFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={immersiveFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                  {immersiveFullscreen ? <ArrowsIn size={18} color="#FFF" /> : <ArrowsOut size={18} color="#FFF" />}
                 </Pressable>
               </View>
             </View>
@@ -2664,10 +2707,10 @@ export default function WatchScreen() {
     </View>
 
     {/* ── Error ── */}
-    {error ? <View style={styles.errorAction}><NothingCard style={styles.errorCard}><DotLabel tone="muted">{futureRelease ? "FUTURE EPISODE" : "VIDEO UNAVAILABLE"}</DotLabel><Text style={styles.errorCopy}>{error}</Text>{lastPlayerError ? <Text style={styles.errorCopy}>{humanPlayerError(lastPlayerError) ?? "Playback failed on this server."}</Text> : null}{lastPlayerError ? <Text style={ps.diagnosticLine}>{`PLAYER · ${lastPlayerError}`}</Text> : null}{skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? <Text style={ps.diagnosticLine}>{`SKIP DATA · ${skipFetchStatus.toUpperCase()}`}</Text> : null}{futureRelease ? null : <View style={styles.errorBtnRow}><NothingButton label={t("player.retry")} onPress={retry} variant="outline" /><NothingButton label={t("player.switchServer")} onPress={() => handleProviderBlocked("permanent")} variant="outline" /><NothingButton label={t("player.copyError")} onPress={() => { void Clipboard.setStringAsync(`${error}${lastPlayerError ? `\nPLAYER · ${lastPlayerError}` : ""}${skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? `\nSKIP DATA · ${skipFetchStatus.toUpperCase()}` : ""}\nSERVER · ${activeProvider?.label || "UNKNOWN"} · ${embedSource ? "EMBED" : useSourceProxy ? "PROXY" : "DIRECT"}`).catch(() => {}); }} variant="outline" /></View>}</NothingCard></View> : null}
+    {error && !immersiveFullscreen ? <View style={styles.errorAction}><NothingCard style={styles.errorCard}><DotLabel tone="muted">{futureRelease ? "FUTURE EPISODE" : "VIDEO UNAVAILABLE"}</DotLabel><Text style={styles.errorCopy}>{error}</Text>{lastPlayerError ? <Text style={styles.errorCopy}>{humanPlayerError(lastPlayerError) ?? "Playback failed on this server."}</Text> : null}{lastPlayerError ? <Text style={ps.diagnosticLine}>{`PLAYER · ${lastPlayerError}`}</Text> : null}{skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? <Text style={ps.diagnosticLine}>{`SKIP DATA · ${skipFetchStatus.toUpperCase()}`}</Text> : null}{futureRelease ? null : <View style={styles.errorBtnRow}><NothingButton label={t("player.retry")} onPress={retry} variant="outline" /><NothingButton label={t("player.switchServer")} onPress={() => handleProviderBlocked("permanent")} variant="outline" /><NothingButton label={t("player.copyError")} onPress={() => { void Clipboard.setStringAsync(`${error}${lastPlayerError ? `\nPLAYER · ${lastPlayerError}` : ""}${skipFetchStatus !== "idle" && skipFetchStatus !== "ok" ? `\nSKIP DATA · ${skipFetchStatus.toUpperCase()}` : ""}\nSERVER · ${activeProvider?.label || "UNKNOWN"} · ${embedSource ? "EMBED" : useSourceProxy ? "PROXY" : "DIRECT"}`).catch(() => {}); }} variant="outline" /></View>}</NothingCard></View> : null}
 
     {/* ── Below player ── */}
-    {!manualFullscreen ? <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, safeAreaInsets.bottom + 24) }]} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
+    <ScrollView ref={infoScrollRef} onScroll={(event) => { infoScrollOffsetY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={immersiveFullscreen ? styles.hiddenPortraitInfo : undefined} contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, safeAreaInsets.bottom + 24) }]} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
       <View style={[styles.bentoTopRow, wideBento && styles.bentoTopRowWide]}>
       <View style={[styles.th3Section, wideBento && styles.bentoInfoWide]}>
         <Text style={styles.th3Watching}><Text style={styles.th3WatchingGreen}>You are watching </Text><Text style={styles.th3WatchingWhite}>Episode {episode}</Text></Text>
@@ -2717,7 +2760,7 @@ export default function WatchScreen() {
           <Text style={styles.th3EpsText}>EPS {episodePage * EPISODE_PAGE_SIZE + 1}–{Math.min((episodePage + 1) * EPISODE_PAGE_SIZE, filteredEpisodes.length)}</Text>
           <View style={styles.th3EpSearch}><AppIcon name="magnify" size={15} color="#71839A" /><TextInput value={episodeSearch} onChangeText={setEpisodeSearch} placeholder="Find episode" placeholderTextColor="#8FA2BA" style={styles.th3EpSearchInput} returnKeyType="done" keyboardType={episodeSearch && /\d/.test(episodeSearch) ? "number-pad" : "default"} /></View>
         </View>
-        {episodeQuery.isPending ? <View style={styles.episodeLoading}><ActivityIndicator color="#3985F5" /><Text style={styles.episodeLoadingText}>LOADING EPISODES</Text></View> : filteredEpisodes.length ? <Animated.View style={[styles.episodeSwipeContainer, { transform: [{ translateX: swipeOffsetX }] }]} {...episodeSwipeResponder.panHandlers}>
+        {episodeQuery.isPending ? <View style={styles.episodeLoading}><SkeletonEpisode /><SkeletonEpisode /></View> : filteredEpisodes.length ? <Animated.View style={[styles.episodeSwipeContainer, { transform: [{ translateX: swipeOffsetX }] }]} {...episodeSwipeResponder.panHandlers}>
           <EpisodeGrid episodes={pagedEpisodes} activeEpisode={episode} totalPages={totalEpisodePages} page={safeEpisodePage} onPageChange={setEpisodePage} onSelect={goToEpisode} onInfo={openEpisodeInfo} totalEpisodeCount={filteredEpisodes.length} columns={episodeGridColumns} />
         </Animated.View> : <Text style={styles.emptyEpisodeText}>{episodeSearch ? "No episodes match your search." : "No episodes are listed for this title."}</Text>}
       </View>
@@ -2725,7 +2768,7 @@ export default function WatchScreen() {
         <View style={styles.ratingRow}><Text style={styles.ratingPrompt}>{currentRating ? `${t("player.youRated")} ${currentRating}/10` : t("player.rateEpisode")}</Text><View style={styles.ratingChoices}>{Array.from({ length: 10 }, (_, index) => index + 1).map((score) => <Pressable key={score} onPress={() => { if (!auth.user) { router.push("/auth" as never); return; } ratings.setRating.mutate({ episode, score }); }} style={[styles.ratingChoice, currentRating >= score && styles.ratingChoiceActive]}><Text style={[styles.ratingChoiceText, currentRating >= score && styles.ratingChoiceTextActive]}>{score}</Text></Pressable>)}</View></View>
         <AnimeComments animeId={animeId} episodeNumber={episode} />
       </View>
-    </ScrollView> : null}
+    </ScrollView>
 
     {/* ── Modal Pickers ── */}
     <Modal visible={activePanel === "speed"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.playbackSpeed")}</Text>{[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => <Pressable key={val} style={[styles.modalItem, speed === val && styles.modalItemActive]} onPress={() => { setSpeed(val); lockedSpeed.current = val; setActivePanel(null); }}><Text style={[styles.modalItemText, speed === val && styles.modalItemTextActive]}>{val === 1.0 ? "1.0x (Normal)" : `${val}x`}</Text>{speed === val && <Check size={20} color="#3985F5" />}</Pressable>)}</View></Pressable></Modal>
@@ -2772,12 +2815,12 @@ export default function WatchScreen() {
         </View>
       )}
     </View></Pressable></Modal>
-  </NativeScreen>;
+  </SafeAreaView>;
 }
 
 // ── Styles ──
 const ps = StyleSheet.create({
-  videoShellFullscreen: { position: "absolute", zIndex: 50, elevation: 50, top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", aspectRatio: undefined, backgroundColor: "#000000", justifyContent: "center" },
+  videoShellFullscreen: { position: "absolute", zIndex: 50, elevation: 50, top: 0, right: 0, bottom: 0, left: 0, width: "100%", maxWidth: "100%", height: "100%", alignSelf: "stretch", aspectRatio: undefined, borderWidth: 0, borderRadius: 0, backgroundColor: "#000000", justifyContent: "center" },
   settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 264, maxWidth: "84%", borderRadius: 18, backgroundColor: "rgba(245,249,255,0.88)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 12 },
   settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#B8D5F5" },
   settingsHeaderText: { color: "#142B4B", fontSize: 13, fontWeight: "900", letterSpacing: 0.3 },
@@ -2796,6 +2839,9 @@ const ps = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  screenRoot: { flex: 1, backgroundColor: "#F5F9FF" },
+  screenRootFullscreen: { backgroundColor: "#000000", overflow: "hidden" },
+  hiddenPortraitInfo: { display: "none" },
   fill: { flex: 1 },
   invalidWrap: { flex: 1, alignItems: "flex-start", justifyContent: "center", gap: 12, paddingHorizontal: 24 },
   invalidTitle: { color: "#172B45", fontSize: 20, fontWeight: "900", letterSpacing: -0.4 },
@@ -2999,8 +3045,7 @@ const styles = StyleSheet.create({
   errorCard: { gap: 6, padding: 12 },
   errorCopy: { color: nothing.muted, fontSize: 12, lineHeight: 16 },
   scroll: { flexGrow: 1, width: "100%", maxWidth: 1240, alignSelf: "center", paddingHorizontal: 14, paddingTop: 14, gap: 14, backgroundColor: "#F5F9FF", paddingBottom: 40 },
-  episodeLoading: { minHeight: 72, alignItems: "center", justifyContent: "center", gap: 7, borderTopWidth: 1, borderTopColor: "#C6DDF5" },
-  episodeLoadingText: { color: "#71839A", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
+  episodeLoading: { gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#C6DDF5" },
   episodePager: { flexDirection: "row", alignItems: "center", gap: 6 },
   episodePagerButton: { flex: 1, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 12, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF5FF" },
   episodePagerDisabled: { opacity: 0.3 },

@@ -29,7 +29,8 @@ import { useEpisodeRatings } from "@/hooks/use-episode-ratings";
 import { useNotifyMe } from "@/hooks/use-notify-me";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import { AnimeComments } from "@/components/anime-comments";
-import { ErrorState, LoadingState } from "@/components/async-state";
+import { ErrorState } from "@/components/async-state";
+import { AnimeDetailSkeleton, SkeletonEpisode } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import { AiringSchedule } from "@/components/airing-schedule";
 import { DotLabel, NothingButton, nothing } from "@/components/nothing-ui";
@@ -174,7 +175,7 @@ export default function AnimeDetailScreen() {
     return (
       <NativeScreen>
         <NativeHeader eyebrow="ANIME" title="Anime" />
-        <LoadingState label="Loading anime details" />
+        <AnimeDetailSkeleton />
       </NativeScreen>
     );
   if (anime.isError || !anime.data)
@@ -640,7 +641,7 @@ export default function AnimeDetailScreen() {
             />
           </View>
           {episodes.isPending ? (
-            <LoadingState label="Finding available episodes" />
+            <View style={styles.episodeLoadingSkeleton}><SkeletonEpisode /><SkeletonEpisode /></View>
           ) : episodes.isError ? (
             <ErrorState
               message={
@@ -1084,6 +1085,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.92)",
   },
   genreChipText: { color: "#3985F5", fontSize: 11, fontWeight: "800" },
+  episodeLoadingSkeleton: { gap: 9 },
   episodeHeading: {
     flexDirection: "row",
     justifyContent: "space-between",

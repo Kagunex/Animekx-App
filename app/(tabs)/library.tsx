@@ -11,7 +11,8 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useWatchHistory } from "@/hooks/use-watch-history";
-import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
+import { EmptyState, ErrorState } from "@/components/async-state";
+import { LibrarySkeleton } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import { nothing } from "@/components/nothing-ui";
 import { NativeScreen } from "@/components/screen";
@@ -156,7 +157,7 @@ export default function LibraryTabScreen() {
       </View>
 
       {active.isPending ? (
-        <LoadingState label="Loading library..." />
+        <LibrarySkeleton />
       ) : active.isError ? (
         <ErrorState
           message="Could not load your library."

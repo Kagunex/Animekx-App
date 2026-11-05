@@ -2,7 +2,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { DotLabel, NothingButton, nothing } from "@/components/nothing-ui";
 
 export function LoadingState({ label = "Memuat data anime..." }: { label?: string }) {
-  return <View style={styles.container}><View style={styles.loadingLine}><View style={styles.loadingFill} /><ActivityIndicator color={nothing.red} size="small" /></View><DotLabel tone="signal">LOADING</DotLabel><Text style={styles.text}>{label}</Text></View>;
+  return <View accessibilityRole="progressbar" accessibilityLabel={label} style={styles.loadingCard}><View style={styles.loadingMark}><View style={styles.markBack} /><View style={styles.markFront}><ActivityIndicator color="#3985F5" size="small" /></View></View><View style={styles.loadingCopy}><DotLabel tone="live">LOADING</DotLabel><Text style={styles.loadingText}>{label}</Text></View></View>;
 }
 
 export function ErrorState({ message, onRetry, retryLabel = "Coba Lagi", retryDisabled = false }: { message: string; onRetry: () => void; retryLabel?: string; retryDisabled?: boolean }) {
@@ -19,8 +19,12 @@ export function EmptyState({ label, action }: { label: string; action?: { label:
 
 const styles = StyleSheet.create({
   container: { minHeight: 198, paddingVertical: 24, gap: 10, alignItems: "flex-start", justifyContent: "center" },
-  loadingLine: { width: "100%", height: 2, backgroundColor: nothing.line, position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  loadingFill: { width: "34%", height: "100%", backgroundColor: nothing.red },
+  loadingCard: { minHeight: 92, marginVertical: 10, padding: 16, flexDirection: "row", alignItems: "center", gap: 14, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 18, backgroundColor: "rgba(255,255,255,0.92)", shadowColor: "#2878F0", shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.07, shadowRadius: 0, elevation: 1 },
+  loadingMark: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  markBack: { position: "absolute", width: 40, height: 40, borderRadius: 12, backgroundColor: "#EAF4FF", borderWidth: 1, borderColor: "#B8D5F5", transform: [{ rotate: "-8deg" }] },
+  markFront: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 11, backgroundColor: "rgba(255,255,255,0.92)", borderWidth: 1, borderColor: "#D7E8F9" },
+  loadingCopy: { flex: 1, gap: 5 },
+  loadingText: { color: "#172B45", fontSize: 14, fontWeight: "700", lineHeight: 20 },
   errorLine: { width: 24, height: 2, backgroundColor: nothing.red },
   outageContainer: { borderLeftWidth: 2, borderLeftColor: nothing.red, paddingLeft: 14 },
   outageLine: { width: 44, height: 2, backgroundColor: nothing.red },

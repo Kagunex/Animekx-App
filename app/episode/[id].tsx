@@ -10,7 +10,8 @@ import { enrichEpisodesWithTmdb } from "@/lib/tmdb-episodes";
 import { animeTitle } from "@/lib/types";
 import { AppIcon } from "@/components/app-icon";
 import { DotLabel, NothingButton, nothing } from "@/components/nothing-ui";
-import { ErrorState, LoadingState } from "@/components/async-state";
+import { ErrorState } from "@/components/async-state";
+import { EpisodeInfoSkeleton } from "@/components/skeleton";
 import { NativeHeader, NativeScreen } from "@/components/screen";
 
 export default function EpisodeInfoScreen() {
@@ -41,7 +42,7 @@ export default function EpisodeInfoScreen() {
   const goInfo = (target: number) => router.replace({ pathname: "/episode/[id]", params: { id: String(animeId), episode: String(target), title, image: params.image || "" } } as never);
 
   if (invalidId) return <NativeScreen><NativeHeader eyebrow="WATCH" title="Episode info" /><ErrorState message="This episode link is invalid." onRetry={() => router.back()} retryLabel="GO BACK" /></NativeScreen>;
-  if (episodes.isPending && anime.isPending) return <NativeScreen><NativeHeader eyebrow="WATCH" title="Episode info" /><LoadingState label="Loading episode information" /></NativeScreen>;
+  if (episodes.isPending && anime.isPending) return <NativeScreen><NativeHeader eyebrow="WATCH" title="Episode info" /><EpisodeInfoSkeleton /></NativeScreen>;
   if (episodes.isError) return <NativeScreen><NativeHeader eyebrow="WATCH" title="Episode info" /><ErrorState message={episodes.error.message || "We could not load episode information."} onRetry={() => void episodes.refetch()} /></NativeScreen>;
 
   return <NativeScreen>

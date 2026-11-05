@@ -7,7 +7,8 @@ import { useAnirakuAuth } from "@/providers/auth-provider";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useWatchHistory } from "@/hooks/use-watch-history";
-import { EmptyState, ErrorState, LoadingState } from "@/components/async-state";
+import { EmptyState, ErrorState } from "@/components/async-state";
+import { LibrarySkeleton } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import {
   AnirakuMark,
@@ -168,7 +169,7 @@ export default function LibraryScreen() {
       : allRecords;
   const content =
     data.isPending && !(tab === "history" && cachedHistoryFallback?.length) ? (
-      <LoadingState label="Synchronizing your library" />
+      <LibrarySkeleton />
     ) : data.isError ? (
       <ErrorState
         message="Your library could not be synchronized."
