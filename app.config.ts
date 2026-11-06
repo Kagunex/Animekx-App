@@ -42,7 +42,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.0.0",
+  version: "1.0.5",
   orientation: "default",
   icon: "./assets/icons/.generated/animekz_launcher.png",
   scheme: env.scheme,
