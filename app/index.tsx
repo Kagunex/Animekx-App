@@ -17,6 +17,7 @@ import { useNsfwPreference } from "@/lib/nsfw-preference";
 const BLUE = "#1675F5";
 const NAVY = "#102B59";
 const LIGHT = "#DCEBFF";
+const HERO_BANNER = require("@/assets/images/naruto-shippuden-hero.jpg");
 const titles = ["Naruto Shippuden", "Naruto", "Boruto: Naruto Next Generations"];
 const features = [
   { label: "Streaming Lancar", icon: Zap },
@@ -64,7 +65,6 @@ export default function LandingScreen() {
     return list.find((anime) => [anime.title.english, anime.title.romaji].some((name) => name?.toLowerCase() === target))
       ?? list.find((anime) => [anime.title.english, anime.title.romaji].some((name) => name?.toLowerCase().startsWith(target)));
   }), [animeQueries]);
-  const heroImage = animeByTitle[0]?.coverImage?.extraLarge ?? animeByTitle[0]?.coverImage?.large ?? animeByTitle[0]?.bannerImage;
   const version = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? "1.0.0";
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function LandingScreen() {
         </View>
 
         <View style={styles.hero}>
-          {heroImage ? <Animated.View pointerEvents="none" style={[styles.heroBackdrop, { transform: [{ translateY: reducedMotion ? 0 : float }] }]}><Image source={{ uri: heroImage }} contentFit="cover" transition={220} style={[styles.heroImage, { width: width < 440 ? Math.min(width * 0.86, 355) : 410, height: width < 440 ? 450 : 510 }]} /></Animated.View> : null}
+          <Animated.View pointerEvents="none" style={[styles.heroBackdrop, { transform: [{ translateY: reducedMotion ? 0 : float }] }]}><Image source={HERO_BANNER} contentFit="cover" contentPosition="center" transition={220} style={styles.heroImage} /></Animated.View>
           <View pointerEvents="none" style={styles.heroWash} />
           <View style={styles.heroContent}>
             <View style={styles.streamingBadge}><Text style={styles.sparkle}>✦</Text><Text style={styles.badgeText}>STREAMING ANIME</Text><View style={styles.badgeDot} /></View>
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
   header: { minHeight: 55, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   brand: { flexDirection: "row", alignItems: "center", gap: 8 }, brandName: { color: NAVY, fontSize: 19, fontWeight: "900", letterSpacing: -0.5 }, tagline: { color: "#6480A3", fontSize: 10, fontWeight: "600", letterSpacing: 0.2 },
   headerActions: { flexDirection: "row", gap: 9 }, roundButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.95)", backgroundColor: "rgba(255,255,255,0.83)", shadowColor: NAVY, shadowOpacity: 0.08, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
-  hero: { height: 540, borderRadius: 28, overflow: "hidden", backgroundColor: "#DCEBFF", borderWidth: 1, borderColor: "#C4D9F4", justifyContent: "center" }, heroBackdrop: { position: "absolute", right: -44, top: 90, zIndex: 0 }, heroImage: { borderRadius: 20 }, heroWash: { ...StyleSheet.absoluteFillObject, width: "50%", backgroundColor: "rgba(240,246,255,0.76)" },
+  hero: { height: 540, borderRadius: 28, overflow: "hidden", backgroundColor: "#DCEBFF", borderWidth: 1, borderColor: "#C4D9F4", justifyContent: "center" }, heroBackdrop: { position: "absolute", top: -10, bottom: -10, left: -10, right: -10, zIndex: 0 }, heroImage: { width: "100%", height: "100%" }, heroWash: { ...StyleSheet.absoluteFillObject, width: "50%", backgroundColor: "rgba(240,246,255,0.76)" },
   heroContent: { zIndex: 2, paddingHorizontal: 19, paddingTop: 20, width: "86%", alignSelf: "flex-start" }, streamingBadge: { alignSelf: "flex-start", height: 31, paddingHorizontal: 11, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 20, borderWidth: 1, borderColor: "rgba(255,255,255,0.95)", backgroundColor: "rgba(255,255,255,0.78)" }, sparkle: { color: BLUE, fontSize: 14, fontWeight: "900" }, badgeText: { color: NAVY, fontSize: 9, letterSpacing: 1.1, fontWeight: "900" }, badgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: BLUE },
   headline: { marginTop: 18, color: NAVY, fontSize: 39, lineHeight: 43, fontWeight: "900", fontStyle: "italic", letterSpacing: -1.5 }, headlineSmall: { fontSize: 35, lineHeight: 39 }, headlineBlue: { color: BLUE }, description: { marginTop: 13, color: NAVY, fontSize: 15, lineHeight: 22, fontWeight: "600" }, descriptionRule: { marginTop: 12, width: 46, height: 4, borderRadius: 2, backgroundColor: BLUE },
   heroButtons: { marginTop: 20, gap: 9, alignSelf: "flex-start", maxWidth: "100%" }, primaryButton: { minHeight: 51, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 28, borderWidth: 1, borderColor: "#0D5FCC", backgroundColor: BLUE, shadowColor: BLUE, shadowOpacity: 0.3, shadowRadius: 9, shadowOffset: { width: 0, height: 5 }, elevation: 4 }, primaryButtonText: { color: "#FFFFFF", fontSize: 13, fontWeight: "900" }, secondaryButton: { minHeight: 49, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, borderRadius: 26, borderWidth: 1.3, borderColor: "#9FC5F4", backgroundColor: "rgba(255,255,255,0.9)" }, secondaryButtonText: { color: NAVY, fontSize: 13, fontWeight: "800" },

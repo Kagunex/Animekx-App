@@ -20,10 +20,12 @@ export function AnimeCard({
   anime,
   compact = false,
   light = false,
+  rank,
 }: {
   anime: Anime;
   compact?: boolean;
   light?: boolean;
+  rank?: number;
 }) {
   const title = animeTitle(anime);
   const artwork = anime.coverImage?.extraLarge || anime.coverImage?.large;
@@ -118,9 +120,11 @@ export function AnimeCard({
           {artwork ? (
             <Image
               source={{ uri: artwork }}
+              recyclingKey={artwork}
               style={styles.poster}
               contentFit="cover"
               transition={200}
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.artFallback}>
@@ -129,6 +133,11 @@ export function AnimeCard({
               </Text>
             </View>
           )}
+          {rank != null ? (
+            <View style={styles.rankBadge}>
+              <Text style={styles.rankBadgeText}>{rank}</Text>
+            </View>
+          ) : null}
           {score != null ? (
             <View style={styles.scoreBadge}>
               <Text style={styles.scoreText}>{score}%</Text>
@@ -205,9 +214,9 @@ const styles = StyleSheet.create({
   compactCard: { width: 112 },
   lightCard: { width: 132 },
   lightMeta: { backgroundColor: "transparent" },
-  lightMedia: { borderColor: "#D5E7F5" },
-  lightTitle: { color: "#172B3A" },
-  lightDetail: { color: "#71869A" },
+  lightMedia: { borderColor: "#D6E8FA", backgroundColor: "#D9EEFF" },
+  lightTitle: { color: "#102B50" },
+  lightDetail: { color: "#647C9B" },
   pressed: nothing.pressed,
   media: {
     height: 188,
@@ -241,6 +250,26 @@ const styles = StyleSheet.create({
     color: nothing.accent,
     fontSize: 10,
     fontWeight: "800",
+    letterSpacing: 0.2,
+  },
+  rankBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#168BFF",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.8)",
+  },
+  rankBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
     letterSpacing: 0.2,
   },
   meta: { gap: 3, paddingHorizontal: 2 },

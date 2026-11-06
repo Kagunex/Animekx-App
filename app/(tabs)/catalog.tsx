@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
 
   resultsWrap: { flex: 1 },
   resultsHead: { paddingHorizontal: 16, paddingBottom: 8 },
-  resultsList: { paddingHorizontal: 16, paddingBottom: 112 },
+  resultsList: { paddingHorizontal: 16, paddingBottom: 132 },
 
   resultRow: {
     flexDirection: "row",

@@ -1,5 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { ChevronRight } from "lucide-react-native";
 import type { Anime } from "@/lib/types";
 import { AnimeCard } from "@/components/anime-card";
 import { nothing } from "@/components/nothing-ui";
@@ -10,12 +11,18 @@ export function AnimeRail({
   items,
   seeAllParams,
   light = false,
+  ranked = false,
+  seeAllLabel = "See all",
+  showSeeAllIcon = false,
 }: {
   label: string;
   title: string;
   items: Anime[];
   seeAllParams?: Record<string, string>;
   light?: boolean;
+  ranked?: boolean;
+  seeAllLabel?: string;
+  showSeeAllIcon?: boolean;
 }) {
   return (
     <View style={styles.section}>
@@ -41,18 +48,31 @@ export function AnimeRail({
               } as never);
             else router.push("/catalog" as never);
           }}
-          style={({ pressed }) => [styles.browse, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.browse,
+            light && styles.browseLight,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={[styles.browseText, light && styles.browseTextLight]}>
-            See all
+            {seeAllLabel}
           </Text>
+          {showSeeAllIcon ? (
+            <ChevronRight size={14} color="#168BFF" strokeWidth={2.4} />
+          ) : null}
         </Pressable>
       </View>
       <FlatList
         horizontal
         data={items}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => <AnimeCard anime={item} light={light} />}
+        renderItem={({ item, index }) => (
+          <AnimeCard
+            anime={item}
+            light={light}
+            rank={ranked ? index + 1 : undefined}
+          />
+        )}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.rail}
         initialNumToRender={4}
@@ -83,12 +103,15 @@ const styles = StyleSheet.create({
   },
   title: {
     color: nothing.white,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: -0.4,
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: -0.5,
   },
-  titleLight: { color: "#172B3A" },
+  titleLight: { color: "#102B50" },
   browse: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -96,7 +119,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: nothing.line,
   },
-  browseTextLight: { color: "#4BA3E8" },
+  browseLight: { backgroundColor: "#D9EEFF", borderColor: "#D6E8FA" },
+  browseTextLight: { color: "#168BFF" },
   browseText: {
     color: nothing.muted,
     fontWeight: "600",

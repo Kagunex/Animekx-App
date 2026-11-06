@@ -79,7 +79,7 @@ export default function LibraryTabScreen() {
     <NativeScreen scroll={false} tone="light" style={styles.fill}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.pageTitle}>My Library</Text>
+          <Text style={styles.pageTitle}>My List</Text>
           <Text style={styles.pageSubtitle}>Your collection</Text>
         </View>
         <Pressable
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: nothing.primary },
   tabText: { color: "#71869A", fontWeight: "700", fontSize: 12 },
   tabTextActive: { color: "#172B3A" },
-  list: { paddingTop: 4, paddingBottom: 112 },
+  list: { paddingTop: 4, paddingBottom: 132 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   pressed: nothing.pressed,
-  emptyContent: { flexGrow: 1, paddingBottom: 112, gap: 26 },
+  emptyContent: { flexGrow: 1, paddingBottom: 132, gap: 26 },
   librarySettings: { gap: 2, paddingBottom: 14 },
   settingsTitle: {
     marginBottom: 6,

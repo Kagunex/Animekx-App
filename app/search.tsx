@@ -121,6 +121,7 @@ export default function SearchScreen() {
     season?: string;
     seasonYear?: string;
     title?: string;
+    q?: string | string[];
   }>();
   const genreFilter =
     typeof params.genre === "string" && params.genre.trim()
@@ -145,9 +146,13 @@ export default function SearchScreen() {
   const categoryTitle = params.title || null;
   const nsfw = useNsfwPreference();
   const isAdultParam = nsfwFilterParam(nsfw.enabled);
-  const [input, setInput] = useState("");
+  const initialQuery =
+    typeof params.q === "string" ? params.q.trim().slice(0, 80) : "";
+  const [input, setInput] = useState(initialQuery);
   const normalizedInput = input.trim().replace(/\s+/g, " ");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(
+    initialQuery.length > 1 ? initialQuery : "",
+  );
   const [retryAt, setRetryAt] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
   const [recent, setRecent] = useState<HistoryEntry[]>([]);

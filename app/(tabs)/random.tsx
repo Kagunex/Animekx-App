@@ -117,7 +117,7 @@ export default function RandomScreen() {
 
   return (
     <NativeScreen>
-      <NativeHeader eyebrow="Animekz" title="Random Anime" />
+      <NativeHeader eyebrow="Animekz" title="Discover" />
 
       {pool.isPending && !anime ? (
         <AnimeDiscoverySkeleton />

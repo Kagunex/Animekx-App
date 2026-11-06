@@ -22,12 +22,14 @@ export function NativeScreen({
   scroll = true,
   style,
   tone = "light",
+  background,
 }: PropsWithChildren<{
   scroll?: boolean;
   style?: ViewStyle;
   tone?: ScreenTone;
+  background?: string;
 }>) {
-  const backgroundColor = tone === "light" ? "#F5FAFF" : "#102334";
+  const backgroundColor = background ?? (tone === "light" ? "#F5FAFF" : "#102334");
   const content = scroll ? (
     <ScrollView
       contentContainerStyle={[styles.scroll, style]}
