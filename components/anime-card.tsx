@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as Linking from "expo-linking";
+import { Star } from "lucide-react-native";
 import { AppIcon } from "@/components/app-icon";
 import type { Anime } from "@/lib/types";
 import { animeTitle } from "@/lib/types";
@@ -11,6 +12,12 @@ import { usePrefetchAnime } from "@/lib/prefetch";
 import { GlassSurface, nothing } from "@/components/nothing-ui";
 
 type ActionItem = { label: string; icon: string; onPress: () => void };
+
+const SHORT_STATUS: Record<string, string> = {
+  RELEASING: "Ongoing",
+  NOT_YET_RELEASED: "Upcoming",
+  FINISHED: "Completed",
+};
 
 function showQuickFeedback(message: string) {
   Alert.alert("", message, [{ text: "OK" }], { cancelable: true });
@@ -83,7 +90,9 @@ export function AnimeCard({
 
   const metaParts = [
     anime.format || null,
-    anime.episodes ? `${anime.episodes} EP` : null,
+    anime.episodes
+      ? `${anime.episodes} EP`
+      : (anime.status ? SHORT_STATUS[anime.status] ?? null : null),
   ].filter(Boolean);
 
   return (
@@ -139,8 +148,18 @@ export function AnimeCard({
             </View>
           ) : null}
           {score != null ? (
-            <View style={styles.scoreBadge}>
-              <Text style={styles.scoreText}>{score}%</Text>
+            <View
+              style={[
+                styles.scoreBadge,
+                light && styles.scoreBadgeLight,
+              ]}
+            >
+              {light ? (
+                <Star size={10} color="#168BFF" strokeWidth={2.6} />
+              ) : null}
+              <Text style={[styles.scoreText, light && styles.scoreTextLight]}>
+                {light ? (anime.averageScore / 10).toFixed(1) : `${score}%`}
+              </Text>
             </View>
           ) : null}
         </View>
@@ -239,6 +258,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 8,
     right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
@@ -246,12 +268,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(75,163,232,0.35)",
   },
+  scoreBadgeLight: {
+    backgroundColor: "rgba(255,255,255,0.94)",
+    borderColor: "#D6E8FA",
+  },
   scoreText: {
     color: nothing.accent,
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 0.2,
   },
+  scoreTextLight: { color: "#102B50" },
   rankBadge: {
     position: "absolute",
     top: 8,

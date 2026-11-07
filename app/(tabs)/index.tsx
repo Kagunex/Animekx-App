@@ -38,14 +38,17 @@ import { InAppEpisodeAlertMonitor } from "@/hooks/use-in-app-episode-alerts";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import {
   Bell,
+  Bookmark,
   CalendarDays,
+  Clapperboard,
+  Compass,
   Flame,
-  Info,
   LayoutGrid,
   Play,
   RotateCw,
   Search,
   SlidersHorizontal,
+  Star,
   UserRound,
 } from "lucide-react-native";
 
@@ -126,12 +129,10 @@ function FilterBar({
 function HeaderIconButton({
   label,
   onPress,
-  primary = false,
   children,
 }: {
   label: string;
   onPress: () => void;
-  primary?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -141,7 +142,6 @@ function HeaderIconButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.headerIconBtn,
-        primary && styles.headerIconBtnPrimary,
         pressed && styles.pressed,
       ]}
     >
@@ -162,15 +162,17 @@ function HomeHeader({ onNotif }: { onNotif: () => void }) {
       />
       <View style={styles.brandLockup}>
         <AnimeKzHeaderLogo width={34} />
-        <Text style={styles.brandName}>AnimeKx</Text>
+        <View style={styles.brandCopy}>
+          <Text style={styles.brandName}>AnimeKz</Text>
+          <Text style={styles.brandTagline}>Watch. Stream. Enjoy.</Text>
+        </View>
       </View>
       <View style={styles.headerActions}>
         <HeaderIconButton
           label="Cari anime"
-          primary
           onPress={() => router.push("/search" as never)}
         >
-          <Search size={18} color="#FFFFFF" strokeWidth={2.4} />
+          <Search size={18} color={UI.primary} strokeWidth={2.4} />
         </HeaderIconButton>
         <HeaderIconButton label="Notifikasi" onPress={onNotif}>
           <Bell size={18} color={UI.text} strokeWidth={2.2} />
@@ -282,14 +284,12 @@ function HomeSearchBar() {
   );
 }
 
-function heroMeta(anime: Anime) {
+function heroChips(anime: Anime) {
   return [
-    anime.format,
-    anime.episodes ? `${anime.episodes} Episode` : null,
-    anime.averageScore ? `${Math.round(anime.averageScore)}%` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+    anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null,
+    anime.seasonYear ? String(anime.seasonYear) : null,
+    anime.episodes ? `${anime.episodes} Episodes` : null,
+  ].filter(Boolean) as string[];
 }
 
 function HeroCarousel({ items }: { items: Anime[] }) {
@@ -334,11 +334,7 @@ function HeroCarousel({ items }: { items: Anime[] }) {
         }}
       >
         {items.map((item, index) => {
-          const image =
-            item.bannerImage ||
-            item.coverImage?.extraLarge ||
-            item.coverImage?.large ||
-            "";
+          const image = item.bannerImage || "";
           const description = item.description
             ? String(item.description)
                 .replace(/<[^>]+>/g, " ")
@@ -374,7 +370,19 @@ function HeroCarousel({ items }: { items: Anime[] }) {
                 </View>
               </View>
               <View style={styles.heroBottom}>
-                <Text style={styles.heroMeta}>{heroMeta(item)}</Text>
+                <View style={styles.heroMetaRow}>
+                  {heroChips(item).map((chip, chipIndex) => (
+                    <View
+                      key={`${item.id}:${chipIndex}`}
+                      style={styles.heroChip}
+                    >
+                      {chipIndex === 0 && item.averageScore ? (
+                        <Star size={11} color={UI.primary} strokeWidth={2.6} />
+                      ) : null}
+                      <Text style={styles.heroChipText}>{chip}</Text>
+                    </View>
+                  ))}
+                </View>
                 <Text style={styles.heroTitle} numberOfLines={2}>
                   {animeTitle(item)}
                 </Text>
@@ -417,8 +425,8 @@ function HeroCarousel({ items }: { items: Anime[] }) {
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Info size={15} color={UI.primary} strokeWidth={2.3} />
-                    <Text style={styles.heroDetailText}>Detail</Text>
+                    <Bookmark size={15} color={UI.primary} strokeWidth={2.3} />
+                    <Text style={styles.heroDetailText}>Bookmark</Text>
                   </Pressable>
                 </View>
                 <View
@@ -458,78 +466,79 @@ function HeroCarousel({ items }: { items: Anime[] }) {
   );
 }
 
-function HomeBentoShortcuts() {
-  const actions = [
+function QuickShortcuts() {
+  const shortcuts: Array<{
+    key: string;
+    label: string;
+    icon: typeof Flame;
+    params?: Record<string, string>;
+  }> = [
+    { key: "genre", label: "Genre", icon: Compass },
     {
-      label: "Find your next series",
-      caption: "Browse the catalog",
-      icon: "globe",
-      route: "/(tabs)/catalog",
+      key: "popular",
+      label: "Populer",
+      icon: Flame,
+      params: { sort: "POPULARITY_DESC", title: "Anime Populer" },
     },
     {
-      label: "Pick for me",
-      caption: "Random discovery",
-      icon: "shuffle",
-      route: "/(tabs)/random",
+      key: "top-rated",
+      label: "Top Rated",
+      icon: Star,
+      params: { sort: "SCORE_DESC", title: "Top Rated" },
     },
     {
-      label: "What airs next",
-      caption: "Weekly schedule",
-      icon: "calendar",
-      route: "/(tabs)/schedule",
+      key: "terbaru",
+      label: "Terbaru",
+      icon: CalendarDays,
+      params: { status: "RELEASING", sort: "POPULARITY_DESC", title: "Terbaru" },
+    },
+    {
+      key: "movie",
+      label: "Movie",
+      icon: Clapperboard,
+      params: { format: "MOVIE", sort: "SCORE_DESC", title: "Anime Movie" },
     },
   ];
 
   return (
-    <View style={styles.bentoSection}>
-      <View style={styles.bentoHeading}>
-        <Text style={styles.bentoEyebrow}>YOUR NEXT MOVE</Text>
-        <Text style={styles.bentoTitle}>Explore AnimeKx</Text>
-      </View>
-      <View style={styles.bentoGrid}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push(actions[0]!.route as never)}
-          style={({ pressed }) => [
-            styles.bentoCard,
-            styles.bentoFeature,
-            styles.bentoCardPrimary,
-            pressed && styles.pressed,
-          ]}
-        >
-          <View style={[styles.bentoIcon, styles.bentoIconPrimary]}>
-            <AppIcon name={actions[0]!.icon} size={20} color="#172B3A" />
-          </View>
-          <View style={styles.bentoCopy}>
-            <Text style={styles.bentoCardTitle}>{actions[0]!.label}</Text>
-            <Text style={styles.bentoCardCaption}>{actions[0]!.caption}</Text>
-          </View>
-          <AppIcon name="arrow-top-right" size={16} color="#287DBB" />
-        </Pressable>
-        <View style={styles.bentoSide}>
-          {actions.slice(1).map((item) => (
-            <Pressable
-              key={item.label}
-              accessibilityRole="button"
-              onPress={() => router.push(item.route as never)}
-              style={({ pressed }) => [
-                styles.bentoCard,
-                styles.bentoSmall,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.bentoIconSmall}>
-                <AppIcon name={item.icon} size={15} color="#172B3A" />
-              </View>
-              <View style={styles.bentoCopy}>
-                <Text style={styles.bentoCardTitle}>{item.label}</Text>
-                <Text style={styles.bentoCardCaption}>{item.caption}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-    </View>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.shortcutRow}
+    >
+      {shortcuts.map((shortcut) => {
+        const Icon = shortcut.icon;
+        return (
+          <Pressable
+            key={shortcut.key}
+            accessibilityRole="button"
+            accessibilityLabel={shortcut.label}
+            onPress={() => {
+              hapticLight();
+              if (!shortcut.params) {
+                router.push("/(tabs)/catalog" as never);
+                return;
+              }
+              router.push({
+                pathname: "/search",
+                params: shortcut.params,
+              } as never);
+            }}
+            style={({ pressed }) => [
+              styles.shortcutCard,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.shortcutIcon}>
+              <Icon size={17} color={UI.primary} strokeWidth={2.3} />
+            </View>
+            <Text style={styles.shortcutLabel} numberOfLines={1}>
+              {shortcut.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -687,20 +696,6 @@ function RailPlaceholder({ title }: { title: string }) {
   );
 }
 
-function GenreQuickBrowse() {
-  const genres = ["Action", "Romance", "Fantasy", "Comedy", "Adventure", "Drama"];
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}><Text style={styles.sectionTitle}>Browse by mood</Text><Text style={styles.sectionEyebrow}>GENRES</Text></View>
-      <View style={styles.genreBrowseGrid}>
-        {genres.map((genre) => <Pressable key={genre} accessibilityRole="button" onPress={() => router.push({ pathname: "/search", params: { genre } } as never)} style={({ pressed }) => [styles.genreBrowseChip, pressed && styles.pressed]}>
-          <Text style={styles.genreBrowseText}>{genre}</Text><AppIcon name="arrow-top-right" size={14} color="#168BFF" />
-        </Pressable>)}
-      </View>
-    </View>
-  );
-}
-
 export default function HomeScreen() {
   const nsfw = useNsfwPreference();
   const isAdultParam = nsfwFilterParam(nsfw.enabled);
@@ -794,12 +789,9 @@ export default function HomeScreen() {
     );
   }
 
-  const featuredBanners = home.data.trending.filter(
-    (item) => Boolean(item.bannerImage),
-  );
-  const featured = (
-    featuredBanners.length >= 5 ? featuredBanners : home.data.trending
-  ).slice(0, 5);
+  const featured = home.data.trending
+    .filter((item) => Boolean(item.bannerImage))
+    .slice(0, 5);
 
   const topPool = [
     ...home.data.trending,
@@ -863,6 +855,7 @@ export default function HomeScreen() {
         <CategoryPills />
         <HomeSearchBar />
         <HeroCarousel items={featured} />
+        <QuickShortcuts />
         <FilterBar value={animeFilter} onChange={setAnimeFilter} />
         {topItems.length ? (
           <AnimeRail
@@ -967,8 +960,6 @@ export default function HomeScreen() {
         ) : null}
 
         <ContinueWatchingRail />
-        <GenreQuickBrowse />
-        <HomeBentoShortcuts />
       </ScrollView>
       <NotificationSheet
         visible={notifSheetVisible}
@@ -1001,11 +992,19 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   brandLockup: { flexDirection: "row", alignItems: "center", gap: 8 },
+  brandCopy: { gap: 1 },
   brandName: {
     color: "#102B50",
     fontSize: 19,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: -0.6,
+    lineHeight: 22,
+  },
+  brandTagline: {
+    color: "#647C9B",
+    fontSize: 9.5,
+    fontWeight: "600",
+    letterSpacing: 0.4,
   },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 7 },
   headerIconBtn: {
@@ -1014,18 +1013,14 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(242,248,255,0.92)",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderWidth: 1,
-    borderColor: "#D6E8FA",
-  },
-  headerIconBtnPrimary: {
-    backgroundColor: "#168BFF",
-    borderColor: "#168BFF",
-    shadowColor: "#168BFF",
-    shadowOpacity: 0.22,
-    shadowRadius: 8,
+    borderColor: "rgba(255,255,255,0.9)",
+    shadowColor: "#102B50",
     shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 2,
   },
   categoryRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   categoryPill: {
@@ -1035,8 +1030,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 19,
     borderWidth: 1,
-    borderColor: "#D6E8FA",
-    backgroundColor: "#FFFFFF",
+    borderColor: "#D9EEFF",
+    backgroundColor: "rgba(255,255,255,0.85)",
   },
   categoryPillActive: {
     backgroundColor: "#168BFF",
@@ -1143,17 +1138,17 @@ const styles = StyleSheet.create({
     height: 458,
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#0C2A52",
+    backgroundColor: "#D9EEFF",
     borderWidth: 1,
-    borderColor: "#C7E2FA",
+    borderColor: "#D6E8FA",
   },
   heroFallback: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#123B6B",
+    backgroundColor: "#D9EEFF",
   },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(8,28,54,0.14)",
+    backgroundColor: "rgba(16,43,80,0.18)",
   },
   heroTopRow: {
     position: "absolute",
@@ -1219,11 +1214,28 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     lineHeight: 27,
   },
-  heroMeta: {
-    color: "#168BFF",
-    fontSize: 11,
+  heroMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+  },
+  heroChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "rgba(217,238,255,0.95)",
+    borderWidth: 1,
+    borderColor: "#D6E8FA",
+  },
+  heroChipText: {
+    color: "#102B50",
+    fontSize: 10.5,
     fontWeight: "800",
-    letterSpacing: 0.15,
+    letterSpacing: 0.2,
   },
   heroDesc: {
     color: "#647C9B",
@@ -1294,60 +1306,39 @@ const styles = StyleSheet.create({
   heroIndicatorActive: { width: 20, backgroundColor: "#168BFF" },
 
   section: { gap: 12 },
-  sectionEyebrow: { color: "#647C9B", fontSize: 10, fontWeight: "900", letterSpacing: 0.8 },
-  genreBrowseGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  genreBrowseChip: { minHeight: 40, minWidth: "30%", flexGrow: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 7, paddingHorizontal: 11, borderWidth: 1, borderColor: "#D6E8FA", borderRadius: 13, backgroundColor: "#FFFFFF", elevation: 1 },
-  genreBrowseText: { color: "#102B50", fontSize: 12, fontWeight: "800" },
-  bentoSection: { gap: 12 },
-  bentoHeading: { gap: 2 },
-  bentoEyebrow: {
-    color: "#3985F5",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-  },
-  bentoTitle: {
-    color: "#172B45",
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: -0.55,
-  },
-  bentoGrid: { flexDirection: "row", alignItems: "stretch", gap: 10 },
-  bentoCard: {
-    minHeight: 84,
-    flexDirection: "row",
+  shortcutRow: { gap: 9, paddingRight: 4 },
+  shortcutCard: {
+    width: 84,
     alignItems: "center",
-    gap: 9,
-    padding: 11,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: "#C6DDF5",
-    backgroundColor: "rgba(255,255,255,0.9)",
-    shadowColor: "#172B45",
-    shadowOffset: { width: 3, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 0,
+    gap: 7,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D6E8FA",
+    shadowColor: "#102B50",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
     elevation: 2,
   },
-  bentoFeature: { flex: 1.08, minHeight: 178, flexDirection: "column", alignItems: "flex-start", justifyContent: "space-between" },
-  bentoSide: { flex: 0.92, justifyContent: "space-between", gap: 10 },
-  bentoSmall: { flex: 1, minHeight: 82, gap: 7, padding: 8 },
-  bentoCardPrimary: { backgroundColor: "#8CCAFF", borderColor: "#172B45" },
-  bentoIcon: {
-    width: 34,
-    height: 34,
+  shortcutIcon: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: 20,
+    backgroundColor: "#D9EEFF",
     borderWidth: 1,
-    borderColor: "rgba(38,55,70,0.16)",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    borderColor: "#D6E8FA",
   },
-  bentoIconPrimary: { width: 42, height: 42, borderRadius: 14 },
-  bentoIconSmall: { width: 28, height: 28, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: "rgba(255,255,255,0.72)" },
-  bentoCopy: { flex: 1, gap: 3 },
-  bentoCardTitle: { color: "#172B45", fontSize: 12, fontWeight: "800", lineHeight: 15 },
-  bentoCardCaption: { color: "#526C7E", fontSize: 10, fontWeight: "600" },
+  shortcutLabel: {
+    color: "#102B50",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+  },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -1379,7 +1370,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: nothing.raised,
     borderWidth: 1,
-    borderColor: "#C6DDF5",
+    borderColor: "#D6E8FA",
   },
   continueImageFallback: {
     ...StyleSheet.absoluteFillObject,
@@ -1388,7 +1379,7 @@ const styles = StyleSheet.create({
     backgroundColor: nothing.elevated,
   },
   continueImageFallbackText: {
-    color: "#71869A",
+    color: "#647C9B",
     fontSize: 28,
     fontWeight: "800",
   },
@@ -1403,7 +1394,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(57,133,245,0.94)",
+    backgroundColor: "#168BFF",
   },
   continueProgress: {
     position: "absolute",
@@ -1411,27 +1402,27 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
-  continueProgressFill: { height: "100%", backgroundColor: "#3985F5" },
+  continueProgressFill: { height: "100%", backgroundColor: "#168BFF" },
   continueInfo: { gap: 2, paddingHorizontal: 2 },
   continueTitle: {
-    color: "#172B45",
+    color: "#102B50",
     fontSize: 13,
     fontWeight: "700",
     lineHeight: 16,
   },
-  continueMeta: { color: "#71839A", fontSize: 11, fontWeight: "600" },
+  continueMeta: { color: "#647C9B", fontSize: 11, fontWeight: "600" },
 
   continueEmpty: { alignItems: "flex-start", paddingVertical: 16, gap: 6 },
-  continueEmptyTitle: { color: "#172B45", fontSize: 15, fontWeight: "800" },
-  continueEmptyText: { color: "#71839A", fontSize: 13, lineHeight: 18 },
+  continueEmptyTitle: { color: "#102B50", fontSize: 15, fontWeight: "700" },
+  continueEmptyText: { color: "#647C9B", fontSize: 13, lineHeight: 18 },
   browseBtn: {
     marginTop: 4,
     paddingHorizontal: 14,
     paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: "#3985F5",
+    backgroundColor: "#168BFF",
   },
   browseBtnText: { color: nothing.white, fontSize: 12, fontWeight: "700" },
 

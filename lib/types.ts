@@ -34,6 +34,7 @@ export type Anime = {
   mal_id?: number | null;
   myAnimeListId?: number | null;
   relations?: { edges?: AnimeRelationEdge[] | null } | null;
+  studios?: { nodes?: Array<{ name?: string | null }> | null } | null;
   trailer?: { id?: string | null; site?: string | null; thumbnail?: string | null } | null;
 };
 

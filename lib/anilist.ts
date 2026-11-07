@@ -133,6 +133,7 @@ const fields = `
 `;
 
 const detailFields = `${fields}
+  studios(isMain: true) { nodes { name } }
   relations {
     edges {
       relationType

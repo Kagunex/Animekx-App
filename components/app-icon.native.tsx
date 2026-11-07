@@ -54,6 +54,7 @@ import FastForward from "lucide-react-native/icons/fast-forward";
 import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
 import ShieldCheck from "lucide-react-native/icons/shield-check";
 import Star from "lucide-react-native/icons/star";
+import Share2 from "lucide-react-native/icons/share-2";
 
 export type AppIconName = string;
 
@@ -76,6 +77,7 @@ const ICONS: Record<string, ComponentType<LucideProps>> = {
   "tune-variant": SlidersHorizontal,
   "link-variant": Link,
   "share-variant": ArrowUpRight,
+  "share-2": Share2,
   "open-in-new": ExternalLink,
   "content-copy": Copy,
   sleep: Clock3,

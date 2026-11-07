@@ -1,6 +1,6 @@
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { ChevronRight } from "lucide-react-native";
+import { ArrowRight } from "lucide-react-native";
 import type { Anime } from "@/lib/types";
 import { AnimeCard } from "@/components/anime-card";
 import { nothing } from "@/components/nothing-ui";
@@ -58,7 +58,7 @@ export function AnimeRail({
             {seeAllLabel}
           </Text>
           {showSeeAllIcon ? (
-            <ChevronRight size={14} color="#168BFF" strokeWidth={2.4} />
+            <ArrowRight size={14} color="#168BFF" strokeWidth={2.4} />
           ) : null}
         </Pressable>
       </View>
