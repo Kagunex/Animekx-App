@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useWatchHistory } from "@/hooks/use-watch-history";
 import { EmptyState, ErrorState } from "@/components/async-state";
@@ -16,6 +17,11 @@ import { LibrarySkeleton } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
 import { nothing } from "@/components/nothing-ui";
 import { NativeScreen } from "@/components/screen";
+import { useAnirakuAuth } from "@/providers/auth-provider";
+import {
+  libraryErrorMessage,
+  refreshLibrarySession,
+} from "@/lib/library-diagnostics";
 
 type LibraryTab = "continue" | "list" | "history";
 
@@ -54,6 +60,8 @@ const TABS: { key: LibraryTab; label: string }[] = [
 ];
 
 export default function LibraryTabScreen() {
+  const auth = useAnirakuAuth();
+  const queryClient = useQueryClient();
   const history = useWatchHistory();
   const bookmarks = useBookmarks();
   const [tab, setTab] = useState<LibraryTab>("continue");
@@ -62,6 +70,20 @@ export default function LibraryTabScreen() {
   const listData = bookmarks.bookmarks;
 
   const active = tab === "list" ? listData : continueData;
+  const activeKey =
+    tab === "list"
+      ? (["bookmarks", auth.user?.id] as const)
+      : (["watch-history", auth.user?.id] as const);
+
+  // "Coba Lagi" must not repeat a failing request against a stale session:
+  // refresh the auth token first, invalidate the cached failure, then refetch.
+  const retryLibrary = () => {
+    void (async () => {
+      await refreshLibrarySession();
+      await queryClient.invalidateQueries({ queryKey: [...activeKey] });
+      void active.refetch();
+    })();
+  };
   const records = active.data ?? [];
 
   // Continue = items with incomplete progress; History = all
@@ -156,13 +178,27 @@ export default function LibraryTabScreen() {
         ))}
       </View>
 
-      {active.isPending ? (
+      {!auth.user ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.emptyContent}
+        >
+          <EmptyState
+            label={
+              tab === "list"
+                ? "Sign in to see your saved list."
+                : tab === "continue"
+                  ? "Sign in to continue watching across devices."
+                  : "Sign in to see your watch history."
+            }
+            action={{ label: "Masuk", onPress: () => router.push("/auth" as never) }}
+          />
+          <LibrarySettings />
+        </ScrollView>
+      ) : active.isPending ? (
         <LibrarySkeleton />
       ) : active.isError ? (
-        <ErrorState
-          message="Could not load your library."
-          onRetry={() => void active.refetch()}
-        />
+        <ErrorState message={libraryErrorMessage(active.error)} onRetry={retryLibrary} />
       ) : filtered.length === 0 ? (
         <ScrollView
           showsVerticalScrollIndicator={false}

@@ -3,12 +3,22 @@ import type { Anime } from "@/lib/types";
 import { animeTitle } from "@/lib/types";
 import { supabase } from "@/lib/supabase";
 import { useAnirakuAuth } from "@/providers/auth-provider";
+import { logLibraryFailure } from "@/lib/library-diagnostics";
 
 export function useBookmarks() {
   const { user } = useAnirakuAuth();
   const queryClient = useQueryClient();
   const queryKey = ["bookmarks", user?.id];
-  const bookmarks = useQuery({ queryKey, enabled: Boolean(user), queryFn: async () => { const { data, error } = await supabase.from("bookmarks").select("*").eq("user_id", user!.id).order("added_at", { ascending: false }); if (error) throw error; return data ?? []; } });
+  const bookmarks = useQuery({ queryKey, enabled: Boolean(user), queryFn: async () => {
+    try {
+      const { data, error } = await supabase.from("bookmarks").select("*").eq("user_id", user!.id).order("added_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    } catch (fetchError) {
+      void logLibraryFailure("bookmarks:list", fetchError, { table: "bookmarks", userId: user?.id ?? null });
+      throw fetchError;
+    }
+  } });
   const toggle = useMutation({ mutationFn: async (anime: Anime) => {
     if (!user) throw new Error("Sign in to save bookmarks.");
     const current = bookmarks.data?.find((bookmark) => bookmark.anime_id === anime.id);

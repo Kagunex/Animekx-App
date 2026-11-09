@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAnirakuAuth } from "@/providers/auth-provider";
 import { useBookmarks } from "@/hooks/use-bookmarks";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -24,6 +25,10 @@ import {
   buildResumeRows,
   type ResumeRow,
 } from "@/lib/up-next";
+import {
+  libraryErrorMessage,
+  refreshLibrarySession,
+} from "@/lib/library-diagnostics";
 
 type LibraryTab = "history" | "bookmarks" | "alerts";
 const tabMeta: Record<
@@ -40,6 +45,7 @@ const tabMeta: Record<
 
 export default function LibraryScreen() {
   const auth = useAnirakuAuth();
+  const queryClient = useQueryClient();
   const history = useWatchHistory();
   const bookmarks = useBookmarks();
   const notifications = useNotifications();
@@ -48,6 +54,23 @@ export default function LibraryScreen() {
   const [cachedResumeRows, setCachedResumeRows] = useState<ResumeRow[] | null>(
     null,
   );
+
+  // "Coba Lagi" refreshes the auth token before the request re-fires so an
+  // expired-JWT failure cannot repeat forever.
+  const retryLibraryData = (refetch: () => void) => {
+    void (async () => {
+      await refreshLibrarySession();
+      await queryClient.invalidateQueries({
+        queryKey:
+          tab === "history"
+            ? ["watch-history"]
+            : tab === "bookmarks"
+              ? ["bookmarks"]
+              : ["notifications"],
+      });
+      refetch();
+    })();
+  };
 
   useEffect(() => {
     let active = true;
@@ -172,8 +195,8 @@ export default function LibraryScreen() {
       <LibrarySkeleton />
     ) : data.isError ? (
       <ErrorState
-        message="Your library could not be synchronized."
-        onRetry={() => void data.refetch()}
+        message={libraryErrorMessage(data.error)}
+        onRetry={() => retryLibraryData(() => void data.refetch())}
       />
     ) : records.length === 0 ? (
       <EmptyState

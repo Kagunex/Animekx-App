@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { logLibraryFailure } from "@/lib/library-diagnostics";
 import { resolveMaxHistoryProgress } from "@/lib/watch-engine";
 import { LOCAL_WATCH_KEY_PREFIX, parseLocalWatchEntry, type LocalWatchEntry } from "@/lib/watch-progress";
 import { useAnirakuAuth } from "@/providers/auth-provider";
@@ -49,7 +50,16 @@ export function useWatchHistory() {
   const [synced, setSynced] = useState(false);
   const syncedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const history = useQuery({ queryKey, enabled: Boolean(user), queryFn: async () => { const { data, error } = await supabase.from("watch_history").select("*").eq("user_id", user!.id).order("updated_at", { ascending: false }); if (error) throw error; return data ?? []; } });
+  const history = useQuery({ queryKey, enabled: Boolean(user), queryFn: async () => {
+    try {
+      const { data, error } = await supabase.from("watch_history").select("*").eq("user_id", user!.id).order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    } catch (fetchError) {
+      void logLibraryFailure("watch-history:list", fetchError, { table: "watch_history", userId: user?.id ?? null });
+      throw fetchError;
+    }
+  } });
 
   // Offline open: keep the last synced rows in AsyncStorage so Library +
   // resume rails render with zero network. Fresh server data always wins

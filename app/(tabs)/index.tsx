@@ -25,6 +25,12 @@ import { usePrefetchAnime } from "@/lib/prefetch";
 import { AnimeRail } from "@/components/anime-rail";
 import { ErrorState } from "@/components/async-state";
 import { nothing } from "@/components/nothing-ui";
+import { BottomGradient } from "@/components/bottom-gradient";
+import { AnimeArtworkImage } from "@/components/anime-artwork";
+import {
+  posterImageOf,
+  bannerImageOf,
+} from "@/lib/anime-images";
 import {
   SkeletonCard,
   SkeletonRail,
@@ -285,8 +291,14 @@ function HomeSearchBar() {
 }
 
 function heroChips(anime: Anime) {
+  const status = anime.status === "RELEASING"
+    ? "Ongoing"
+    : anime.status === "FINISHED"
+      ? "Completed"
+      : null;
   return [
     anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null,
+    status,
     anime.seasonYear ? String(anime.seasonYear) : null,
     anime.episodes ? `${anime.episodes} Episodes` : null,
   ].filter(Boolean) as string[];
@@ -295,9 +307,18 @@ function heroChips(anime: Anime) {
 function HeroCarousel({ items }: { items: Anime[] }) {
   const { width } = useWindowDimensions();
   const slideWidth = Math.max(1, width - 36);
+  const slideHeight = Math.round(
+    Math.min(Math.max((slideWidth * 9) / 16, 244), 380),
+  );
   const scrollRef = useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const prefetch = usePrefetchAnime();
+
+  const openDetail = (item: Anime) => {
+    hapticLight();
+    prefetch(item.id);
+    router.push(`/anime/${item.id}` as never);
+  };
 
   useEffect(() => {
     setActiveIndex(0);
@@ -334,31 +355,44 @@ function HeroCarousel({ items }: { items: Anime[] }) {
         }}
       >
         {items.map((item, index) => {
-          const image = item.bannerImage || "";
-          const description = item.description
-            ? String(item.description)
-                .replace(/<[^>]+>/g, " ")
-                .replace(/&[a-z]+;/gi, " ")
-                .replace(/\s+/g, " ")
-                .trim()
-            : "";
+          const banner = bannerImageOf(item);
+          const poster = posterImageOf(item);
           return (
             <View
               key={item.id}
-              style={[styles.heroSlide, { width: slideWidth }]}
+              style={[
+                styles.heroSlide,
+                { width: slideWidth, height: slideHeight },
+              ]}
             >
-              <View style={styles.heroFallback} />
-              {image ? (
-                <Image
-                  source={{ uri: image }}
-                  style={StyleSheet.absoluteFill}
-                  contentFit="cover"
-                  transition={220}
-                  cachePolicy="memory-disk"
-                />
-              ) : null}
-              <View style={styles.heroScrim} />
-              <View style={styles.heroTopRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Buka detail ${animeTitle(item)}`}
+                onPress={() => openDetail(item)}
+                style={styles.heroArt}
+              >
+                {banner ? (
+                  <AnimeArtworkImage
+                    uri={banner}
+                    animeId={item.id}
+                    kind="hero-banner"
+                    transition={260}
+                    fallbackLabel={animeTitle(item)}
+                  />
+                ) : poster ? (
+                  <AnimeArtworkImage
+                    uri={poster}
+                    animeId={item.id}
+                    kind="hero-poster"
+                    blurRadius={24}
+                    transition={260}
+                    fallbackLabel={animeTitle(item)}
+                  />
+                ) : null}
+                <View style={styles.heroScrim} />
+                <BottomGradient opacity={0.9} />
+              </Pressable>
+              <View style={styles.heroTopRow} pointerEvents="none">
                 <View style={styles.trendingBadge}>
                   <Flame size={12} color="#FFFFFF" strokeWidth={2.6} />
                   <Text style={styles.trendingBadgeText}>TRENDING</Text>
@@ -370,6 +404,9 @@ function HeroCarousel({ items }: { items: Anime[] }) {
                 </View>
               </View>
               <View style={styles.heroBottom}>
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {animeTitle(item)}
+                </Text>
                 <View style={styles.heroMetaRow}>
                   {heroChips(item).map((chip, chipIndex) => (
                     <View
@@ -377,29 +414,17 @@ function HeroCarousel({ items }: { items: Anime[] }) {
                       style={styles.heroChip}
                     >
                       {chipIndex === 0 && item.averageScore ? (
-                        <Star size={11} color={UI.primary} strokeWidth={2.6} />
+                        <Star size={11} color="#FFFFFF" strokeWidth={2.6} />
                       ) : null}
                       <Text style={styles.heroChipText}>{chip}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {animeTitle(item)}
-                </Text>
-                {description ? (
-                  <Text style={styles.heroDesc} numberOfLines={2}>
-                    {description}
-                  </Text>
-                ) : null}
                 <View style={styles.heroActions}>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Tonton ${animeTitle(item)}`}
-                    onPress={() => {
-                      hapticLight();
-                      prefetch(item.id);
-                      router.push(`/anime/${item.id}` as never);
-                    }}
+                    onPress={() => openDetail(item)}
                     style={({ pressed }) => [
                       styles.heroPlayBtn,
                       pressed && styles.pressed,
@@ -416,17 +441,14 @@ function HeroCarousel({ items }: { items: Anime[] }) {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel={`Detail ${animeTitle(item)}`}
-                    onPress={() => {
-                      prefetch(item.id);
-                      router.push(`/anime/${item.id}` as never);
-                    }}
+                    onPress={() => openDetail(item)}
                     style={({ pressed }) => [
                       styles.heroDetailBtn,
                       pressed && styles.pressed,
                     ]}
                   >
-                    <Bookmark size={15} color={UI.primary} strokeWidth={2.3} />
-                    <Text style={styles.heroDetailText}>Bookmark</Text>
+                    <Bookmark size={15} color="#FFFFFF" strokeWidth={2.3} />
+                    <Text style={styles.heroDetailText}>Info</Text>
                   </Pressable>
                 </View>
                 <View
@@ -789,8 +811,11 @@ export default function HomeScreen() {
     );
   }
 
-  const featured = home.data.trending
-    .filter((item) => Boolean(item.bannerImage))
+  const featured = [...home.data.trending]
+    .sort(
+      (a, b) =>
+        Number(Boolean(b.bannerImage)) - Number(Boolean(a.bannerImage)),
+    )
     .slice(0, 5);
 
   const topPool = [
@@ -822,7 +847,7 @@ export default function HomeScreen() {
     .slice(0, 10);
 
   const season = currentAnimeSeason();
-  const topSeeAllParams =
+  const topSeeAllParams: Record<string, string> =
     animeFilter === "upcoming"
       ? {
           status: "NOT_YET_RELEASED",
@@ -1135,26 +1160,26 @@ const styles = StyleSheet.create({
   heroSection: { marginTop: 2 },
   heroScroller: { borderRadius: 24, overflow: "hidden" },
   heroSlide: {
-    height: 458,
     borderRadius: 24,
     overflow: "hidden",
     backgroundColor: "#D9EEFF",
     borderWidth: 1,
     borderColor: "#D6E8FA",
+    justifyContent: "flex-end",
   },
-  heroFallback: {
+  heroArt: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "#D9EEFF",
   },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(16,43,80,0.18)",
+    backgroundColor: "rgba(16,43,80,0.26)",
   },
   heroTopRow: {
     position: "absolute",
-    top: 14,
-    left: 14,
-    right: 14,
+    top: 12,
+    left: 12,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1179,40 +1204,31 @@ const styles = StyleSheet.create({
   heroCounter: {
     paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.92)",
+    borderRadius: 999,
+    backgroundColor: "rgba(16,43,80,0.48)",
     borderWidth: 1,
-    borderColor: "rgba(214,232,250,0.95)",
+    borderColor: "rgba(255,255,255,0.28)",
   },
   heroCounterText: {
-    color: "#102B50",
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "800",
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
   heroBottom: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    bottom: 10,
-    gap: 7,
+    gap: 8,
     padding: 14,
-    borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.94)",
-    borderWidth: 1,
-    borderColor: "rgba(214,232,250,0.98)",
-    shadowColor: "#102B50",
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
+    paddingTop: 10,
   },
   heroTitle: {
-    color: "#102B50",
+    color: "#FFFFFF",
     fontWeight: "900",
-    fontSize: 23,
-    letterSpacing: -0.6,
-    lineHeight: 27,
+    fontSize: 21,
+    letterSpacing: -0.5,
+    lineHeight: 26,
+    textShadowColor: "rgba(16,43,80,0.65)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
   },
   heroMetaRow: {
     flexDirection: "row",
@@ -1227,12 +1243,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(217,238,255,0.95)",
+    backgroundColor: "rgba(16,43,80,0.5)",
     borderWidth: 1,
-    borderColor: "#D6E8FA",
+    borderColor: "rgba(255,255,255,0.24)",
   },
   heroChipText: {
-    color: "#102B50",
+    color: "#FFFFFF",
     fontSize: 10.5,
     fontWeight: "800",
     letterSpacing: 0.2,
@@ -1246,7 +1262,7 @@ const styles = StyleSheet.create({
   heroActions: {
     flexDirection: "row",
     gap: 8,
-    marginTop: 1,
+    marginTop: 2,
     alignItems: "center",
     justifyContent: "flex-start",
   },
@@ -1281,12 +1297,12 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     borderRadius: 13,
-    backgroundColor: "#D9EEFF",
+    backgroundColor: "rgba(16,43,80,0.42)",
     borderWidth: 1,
-    borderColor: "#D6E8FA",
+    borderColor: "rgba(255,255,255,0.36)",
   },
   heroDetailText: {
-    color: "#102B50",
+    color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.4,
@@ -1299,11 +1315,11 @@ const styles = StyleSheet.create({
   },
   heroIndicator: {
     height: 5,
-    width: 5,
+    width: 6,
     borderRadius: 3,
-    backgroundColor: "#BCD7F0",
+    backgroundColor: "rgba(255,255,255,0.45)",
   },
-  heroIndicatorActive: { width: 20, backgroundColor: "#168BFF" },
+  heroIndicatorActive: { width: 20, backgroundColor: "#FFFFFF" },
 
   section: { gap: 12 },
   shortcutRow: { gap: 9, paddingRight: 4 },

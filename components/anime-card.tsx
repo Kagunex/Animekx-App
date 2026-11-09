@@ -158,7 +158,7 @@ export function AnimeCard({
                 <Star size={10} color="#168BFF" strokeWidth={2.6} />
               ) : null}
               <Text style={[styles.scoreText, light && styles.scoreTextLight]}>
-                {light ? (anime.averageScore / 10).toFixed(1) : `${score}%`}
+                {light ? ((anime.averageScore ?? 0) / 10).toFixed(1) : `${score}%`}
               </Text>
             </View>
           ) : null}

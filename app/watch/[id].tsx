@@ -3,7 +3,7 @@ import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useQuery } from "@tanstack/react-query";
 import { parseRouteEpisode, parseRouteId } from "@/lib/route-params";
-import { AccessibilityInfo, ActivityIndicator, Alert, Animated, BackHandler, Dimensions, FlatList, LayoutChangeEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Alert, Animated, BackHandler, Dimensions, FlatList, LayoutChangeEvent, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Video, { type OnProgressData, type OnLoadData, type OnBufferData, type VideoRef } from "react-native-video";
@@ -16,16 +16,11 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 import { SkeletonEpisode } from "@/components/skeleton";
-import ArrowLeft from "lucide-react-native/icons/arrow-left";
-import Gear from "lucide-react-native/icons/settings";
-import Speedometer from "lucide-react-native/icons/gauge";
-import Subtitles from "lucide-react-native/icons/captions";
 import SpeakerHigh from "lucide-react-native/icons/volume-2";
 import SpeakerNone from "lucide-react-native/icons/volume-x";
 import SkipBack from "lucide-react-native/icons/skip-back";
 import SkipForward from "lucide-react-native/icons/skip-forward";
 import Play from "lucide-react-native/icons/play";
-import Pause from "lucide-react-native/icons/pause";
 import ArrowsOut from "lucide-react-native/icons/expand";
 import ArrowsIn from "lucide-react-native/icons/minimize";
 import Check from "lucide-react-native/icons/check";
@@ -95,6 +90,18 @@ import { NativeScreen } from "@/components/screen";
 import { SubtitleRenderer } from "@/components/subtitle-renderer";
 import { SleepTimerPill } from "@/components/sleep-timer";
 import { chrome } from "@/components/player/chrome-styles";
+import { CenterControls } from "@/components/player/center-controls";
+import { WatchInfo } from "@/components/player/watch-info";
+import { EpisodePanel } from "@/components/player/episode-panel";
+import { PanelSheet } from "@/components/player/panel-sheet";
+import ListVideo from "lucide-react-native/icons/list-video";
+import SubtitlesIcon from "lucide-react-native/icons/captions";
+import Gear from "lucide-react-native/icons/settings";
+import MoreVertical from "lucide-react-native/icons/ellipsis-vertical";
+import { ProviderSearchOverlay, type ProviderStepState } from "@/components/player/provider-search-overlay";
+import { playerTheme } from "@/components/player/player-theme";
+import { useBookmarks } from "@/hooks/use-bookmarks";
+import { progressFraction } from "@/lib/watch-progress";
 import { parseSubtitle, detectSubtitleFormat, detectSubtitleFormatFromContent, findActiveCues, matchSubtitleTrack, type SubtitleCue } from "@/lib/subtitle-parser";
 import { loadSubtitlePreferences, saveSubtitlePreferences, SUBTITLE_FONTS, BG_OPACITY_PRESETS, OUTLINE_PRESETS, type SubtitlePreferences } from "@/lib/subtitle-preferences";
 import { resolveNextEpisode, resolvePrevEpisode } from "@/lib/up-next";
@@ -199,6 +206,15 @@ export default function WatchScreen() {
   const title = params.title || (animeQuery.data ? animeTitle(animeQuery.data) : "Aniraku stream");
   const image = params.image || animeQuery.data?.coverImage?.extraLarge || animeQuery.data?.coverImage?.large || "";
   const watchBackdrop = animeQuery.data?.bannerImage || image;
+  // Real season metadata only — FALL/SUMMER + year from AniList. Never invented.
+  const seasonLabel = useMemo(() => {
+    const season = animeQuery.data?.season;
+    const year = animeQuery.data?.seasonYear;
+    const pretty = season ? `${season.charAt(0)}${season.slice(1).toLowerCase()}` : "";
+    if (pretty && year) return `${pretty} ${year}`;
+    if (pretty) return pretty;
+    return year ? String(year) : "";
+  }, [animeQuery.data?.season, animeQuery.data?.seasonYear]);
   const auth = useAnirakuAuth();
   const history = useWatchHistory();
   const ratings = useEpisodeRatings(animeId);
@@ -236,9 +252,6 @@ export default function WatchScreen() {
   const [playerStatus, setPlayerStatus] = useState<"idle" | "loading" | "playing" | "paused" | "error">("idle");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [videoAspectRatio, setVideoAspectRatio] = useState(16 / 9);
-  const [synopsisExpanded, setSynopsisExpanded] = useState(false);
-  useEffect(() => { setSynopsisExpanded(false); }, [animeId]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [buffering, setBuffering] = useState(false);
@@ -258,10 +271,12 @@ export default function WatchScreen() {
   const [stream, setStream] = useState<StreamResponse | null>(null);
   const [source, setSource] = useState<StreamSource | null>(null);
   const [embedSource, setEmbedSource] = useState<StreamSource | null>(null);
+  const [embedReady, setEmbedReady] = useState(false);
   const [useSourceProxy, setUseSourceProxy] = useState(false);
   const [playbackHeaders, setPlaybackHeaders] = useState<Record<string, string> | undefined>();
   const [loadingServers, setLoadingServers] = useState(true);
   const [serverAttempt, setServerAttempt] = useState(0);
+  const [discoveryNonce, setDiscoveryNonce] = useState(0);
   const [loadingStream, setLoadingStream] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -269,7 +284,7 @@ export default function WatchScreen() {
   const [speed, setSpeed] = useState(1);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  type ActivePanel = "settings" | "subtitles" | "speed" | "server" | "chapters" | "source" | "quality" | "download" | null;
+  type ActivePanel = "settings" | "subtitles" | "speed" | "server" | "chapters" | "source" | "quality" | "download" | "episodes" | null;
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [manualFullscreen, setManualFullscreen] = useState(false);
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
@@ -484,6 +499,70 @@ export default function WatchScreen() {
   const currentRating = ratings.scoreFor(episode) ?? 0;
   const skipKind = activeSkipKind(skipSegments, currentTime);
 
+  // ── Provider pipeline status: mapped from REAL discovery/stream state —
+  // no simulated progress. A step only fills when the underlying phase
+  // genuinely passed (search finished, a source mounted, first frame played).
+  const providerFound = providers.sub.length > 0 || providers.dub.length > 0;
+  const streamMounted = Boolean(source || embedSource);
+  const playbackStarted = source ? playerStatus === "playing" : Boolean(embedSource && embedReady);
+  const providerStepStates: ProviderStepState[] = (() => {
+    const phaseDone = [
+      preferencesReady || streamMounted || loadingStream,
+      providerFound || streamMounted,
+      streamMounted,
+      playbackStarted,
+    ];
+    const firstPending = phaseDone.findIndex((done) => !done);
+    return [0, 1, 2, 3, 4].map((index): ProviderStepState => {
+      if (firstPending === -1 || index < firstPending) return "done";
+      return index === firstPending ? "active" : "pending";
+    });
+  })();
+  const providerSearchVisible = !streamMounted
+    ? loadingServers || loadingStream || Boolean(error)
+    : source ? playerStatus !== "playing" : !embedReady;
+
+  // ── Below-player info + action pills ──
+  const synopsisText = useMemo(
+    () => (animeQuery.data?.description ?? "").replace(/<[^>]+>/g, "").trim(),
+    [animeQuery.data?.description],
+  );
+  const bookmarks = useBookmarks();
+  const favorited = animeId > 0 && bookmarks.isBookmarked(animeId);
+  const toggleFavorite = useCallback(() => {
+    if (!animeQuery.data) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (!auth.user) { router.push("/auth" as never); return; }
+    bookmarks.toggle.mutate(animeQuery.data, {
+      onSuccess: (added) => setDownloadMessage(added ? "SAVED TO FAVORITES." : "REMOVED FROM FAVORITES."),
+      onError: () => setDownloadMessage("SIGN IN TO SAVE FAVORITES."),
+    });
+  }, [animeQuery.data, auth.user, bookmarks]);
+  const shareAnime = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const deepLink = `animekz://anime/${animeId}`;
+    const webUrl = `https://aniraku.tech/anime/${animeId}`;
+    Share.share({ title, message: `Watch EP ${episode} of ${title} on Animekz\n${deepLink}`, url: Platform.OS === "ios" ? deepLink : webUrl }).catch(() => {});
+  }, [animeId, episode, title]);
+  // "Episode list" pill scrolls the info sheet to the episode guide.
+  const episodesSectionY = useRef(0);
+  const scrollToEpisodeList = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    infoScrollRef.current?.scrollTo({ y: episodesSectionY.current, animated: true });
+  }, []);
+  // Real watch-history progress (0–1) per episode of this anime, used by the
+  // episode selector panel to mark what has already been watched. displayRows
+  // includes the offline cache, so genuinely-watched episodes still light up.
+  const historyProgressMap = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const entry of history.displayRows ?? []) {
+      if (entry?.anime_id !== animeId || !(entry?.duration > 0)) continue;
+      const fraction = progressFraction({ episode_number: entry.episode_number ?? entry.episode, progress: entry.progress ?? 0, duration: entry.duration });
+      if (fraction > 0) map.set(Number(entry.episode_number ?? entry.episode), fraction);
+    }
+    return map;
+  }, [animeId, history.displayRows]);
+
   // ── Subtitle loading ──
   useEffect(() => { loadSubtitlePreferences().then(setSubtitlePrefs).catch(() => {}); }, []);
 
@@ -589,7 +668,6 @@ export default function WatchScreen() {
   }, []);
 
   const clearEpisodePlayback = useCallback(() => {
-    setVideoAspectRatio(16 / 9);
     videoRef.current?.pause();
     setStream(null);
     setSource(null);
@@ -760,7 +838,7 @@ export default function WatchScreen() {
     };
     void fetchServers(0);
     return () => { cancelled = true; clearTimeout(discoveryTimeout); };
-  }, [animeId, animeQuery.isPending, canonicalEpisodes.length, clearEpisodePlayback, episode, episodeQuery.isPending, futureRelease, invalidEpisode]);
+  }, [animeId, animeQuery.isPending, canonicalEpisodes.length, clearEpisodePlayback, discoveryNonce, episode, episodeQuery.isPending, futureRelease, invalidEpisode]);
 
   // ── Stream loading ──
   useEffect(() => {
@@ -957,6 +1035,7 @@ export default function WatchScreen() {
   useEffect(() => {
     if (!embedSource || source) return;
     embedReadyRef.current = false;
+    setEmbedReady(false);
     const timer = setTimeout(() => {
       if (!embedReadyRef.current) handleProviderBlockedRef.current("startup");
     }, 15_000);
@@ -1928,6 +2007,15 @@ export default function WatchScreen() {
     setRefreshNonce((v) => v + 1);
   };
 
+  // Overlay Retry: an exhausted provider list re-runs the real discovery
+  // round; a provider-level failure uses the same refresh/rotation path as
+  // the existing TRY AGAIN button.
+  const retryProviderSearch = () => {
+    if (activeProvider) { retry(); return; }
+    setServerAttempt(0);
+    setDiscoveryNonce((v) => v + 1);
+  };
+
   // Backend `downloads[]` links are external download pages (e.g. provider
   // file hosts), not direct files — they open in the external browser, never
   // through the in-app proxy saver. Every tap confirms with a "leaving the
@@ -2030,6 +2118,8 @@ export default function WatchScreen() {
   const goToEpisode = useCallback((targetEpisode: number) => {
     if (!canonicalEpisodes.some((item) => item.number === targetEpisode)) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    // Any panel that started the switch closes with it.
+    setActivePanel(null);
     router.replace({ pathname: "/watch/[id]", params: { id: String(animeId), episode: String(targetEpisode), title, image } } as never);
   }, [animeId, canonicalEpisodes, image, title]);
 
@@ -2137,7 +2227,11 @@ export default function WatchScreen() {
     }
   };
 
-  const onBarTouchStart = () => { setDragPct(progressPct); };
+  const onBarTouchStart = () => {
+    // Scrubbing the timeline is interaction: chrome stays up for another cycle.
+    setShowControls(true);
+    setDragPct(progressPct);
+  };
 
   const enterFullscreen = useCallback(() => {
     // Close every overlay so fullscreen never opens with a hidden-behind-modal
@@ -2151,6 +2245,7 @@ export default function WatchScreen() {
 
   const exitFullscreen = useCallback(() => {
     setManualFullscreen(false);
+    setActivePanel(null);
     // Keep chrome visible on exit so the inline player never looks dead.
     setShowControls(true);
     if (Platform.OS !== "web") {
@@ -2227,14 +2322,24 @@ export default function WatchScreen() {
   useEffect(() => {
     if (!source || !showControls || activePanel) return;
     if (dragPct !== null) return; // never hide the chrome out from under a scrub
+    if (!isPlaying) return; // paused video keeps the chrome up — there is no clock to trust
     // NOTE: currentTime is deliberately NOT a dep — progress ticks every
     // second and would reset this timer forever, so chrome could never hide.
     const timer = setTimeout(() => setShowControls(false), 3_500);
     return () => clearTimeout(timer);
-  }, [showControls, activePanel, immersiveFullscreen, source?.url, dragPct]);
+  }, [showControls, activePanel, immersiveFullscreen, source?.url, dragPct, isPlaying, buffering]);
 
   // Controls fade instead of popping — 180ms opacity, cause → effect only.
   const controlsOpacity = useRef(new Animated.Value(0)).current;
+  // Progress-thumb grow: a spring between idle scale and drag scale — the
+  // binary width-swap used to jump; this keeps the motion continuous and is
+  // far cheaper than an Animated width (native-driver plain transform only).
+  const knobScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const job = Animated.spring(knobScale, { toValue: dragPct !== null ? 1.45 : 1, useNativeDriver: Platform.OS !== "web", friction: 7, tension: 220 });
+    job.start();
+    return () => job.stop();
+  }, [knobScale, dragPct]);
   const [controlsRendered, setControlsRendered] = useState(true);
   const controlsFadeJob = useRef<Animated.CompositeAnimation | null>(null);
   useEffect(() => {
@@ -2283,18 +2388,18 @@ export default function WatchScreen() {
   }
 
   return <SafeAreaView edges={immersiveFullscreen ? [] : ["top", "left", "right"]} style={[styles.screenRoot, immersiveFullscreen && styles.screenRootFullscreen]}>
-    <StatusBar hidden={immersiveFullscreen} style={immersiveFullscreen ? "light" : "dark"} />
+    <StatusBar hidden={immersiveFullscreen} style="light" />
 
     {/* ── Video Container + Gesture Layer ── */}
     {/* NOTE: panHandlers live on the sibling overlay below, NOT on this parent.
         Parent-level onStartShouldSetPanResponder stole Pressable touches and the
         native Video SurfaceView eats touches aimed behind it. */}
-    <View style={[styles.videoShell, { aspectRatio: videoAspectRatio }, immersiveFullscreen && ps.videoShellFullscreen]}>
-      {embedSource && !source ? <EmbedPlayer uri={embedSource.url} headers={nativePlaybackHeaders(playbackHeaders)} onError={() => handleProviderBlockedRef.current("player")} onLoaded={() => { embedReadyRef.current = true; }} /> : null}
+    <View style={[styles.videoShell, { aspectRatio: 16 / 9 }, immersiveFullscreen && ps.videoShellFullscreen]}>
+      {embedSource && !source ? <EmbedPlayer uri={embedSource.url} headers={nativePlaybackHeaders(playbackHeaders)} onError={() => handleProviderBlockedRef.current("player")} onLoaded={() => { embedReadyRef.current = true; setEmbedReady(true); }} /> : null}
       {source ? <Video key={activeProvider?.id ?? "default"} ref={videoRef} style={StyleSheet.absoluteFill} source={{ uri: videoSourceUri, headers: videoSourceHeaders, type: videoContentType, bufferConfig: videoBufferConfig }}
         paused={!isPlaying} rate={is2xSeeking ? 2.0 : speed} resizeMode="contain" muted={muted} volume={volume}
         maxBitRate={adaptiveBitrateCap ?? undefined}
-        onLoad={(data: OnLoadData) => { if (__DEV__) console.log(`[watch] first-frame t=${Date.now() - _watchMountTime}ms provider=${activeProvider?.id ?? "?"}`); const naturalSize = data.naturalSize; if (naturalSize?.width && naturalSize?.height) setVideoAspectRatio(Math.max(0.56, Math.min(1.78, naturalSize.width / naturalSize.height))); setDuration(data.duration); sourceFirstFrame.current = true; sourceStarted.current = true; setPlayerStatus("playing"); setIsPlaying(true); setLastPlayerError(null); setShowControls(true); }}
+        onLoad={(data: OnLoadData) => { if (__DEV__) console.log(`[watch] first-frame t=${Date.now() - _watchMountTime}ms provider=${activeProvider?.id ?? "?"}`); setDuration(data.duration); sourceFirstFrame.current = true; sourceStarted.current = true; setPlayerStatus("playing"); setIsPlaying(true); setLastPlayerError(null); setShowControls(true); }}
         onProgress={handleVideoProgress}
         onBuffer={(data: OnBufferData) => { setBuffering(data.isBuffering); }}
         onVideoTracks={handleVideoTracks}
@@ -2320,18 +2425,25 @@ export default function WatchScreen() {
         }}
         onEnd={() => { const reachedEnd = duration > 30 && currentTime >= Math.max(1, duration - 2); if (!sourceStarted.current || !reachedEnd) return; if (auth.user) { history.save.mutate({ animeId, animeTitle: title, animeImage: image || null, episode, episodeTitle: selectedEpisode?.title || null, episodeThumbnail: selectedEpisode?.thumbnail || null, progress: duration || currentTime, duration: duration || currentTime }); if (providerSync.connected.length) providerSync.pushProgress.mutate({ animeId, episode, progress: Math.floor(duration || currentTime), status: "completed" }); } showUpNext(); }}
       /> : (embedSource && !error) ? null : <View style={styles.videoPlaceholder}>
-        {loadingServers ? <ProviderDiscoveryLoader attempt={serverAttempt} /> : loadingStream ? <View style={styles.thumbnailLoading}>
-          <Image source={{ uri: selectedEpisode?.thumbnail || watchBackdrop || image || "" }} style={StyleSheet.absoluteFillObject} contentFit="cover" cachePolicy="memory-disk" />
-          <View style={styles.thumbnailLoadingShade} />
-          <View style={styles.thumbnailLoadingContent}><View style={styles.thumbnailPlay}><Play size={18} color={nothing.black} /></View><Text style={styles.thumbnailEpisode}>EPISODE {episode}</Text><Text numberOfLines={2} style={styles.thumbnailTitle}>{selectedEpisode?.title || title}</Text><Text style={styles.thumbnailStatus}>STARTING VIDEO</Text></View>
-        </View> : error ? <Text style={styles.errorText}>{error}</Text> : <Text style={styles.placeholderText}>PREPARING VIDEO</Text>}
+        {selectedEpisode?.thumbnail || watchBackdrop || image ? (
+          <>
+            <Image source={{ uri: selectedEpisode?.thumbnail || watchBackdrop || image }} style={StyleSheet.absoluteFillObject} contentFit="cover" cachePolicy="memory-disk" />
+            <View pointerEvents="none" style={styles.placeholderShade} />
+          </>
+        ) : null}
       </View>}
 
-      {!source && !embedSource && !immersiveFullscreen ? <View style={styles.loadingHeader}>
-        <BlurView pointerEvents="none" intensity={30} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back" style={styles.loadingBackButton} hitSlop={8}><ArrowLeft size={20} color="#FFFFFF" /></Pressable>
-        <View style={styles.loadingHeaderCopy}><Text numberOfLines={1} style={styles.loadingHeaderTitle}>{title}</Text><Text style={styles.loadingHeaderEpisode}>EPISODE {episode}</Text></View>
-      </View> : null}
+      {/* ── Finding Streaming Providers: centered on the video, driven by the
+          real discovery pipeline. Hides the moment a stream is actually
+          ready; swaps to an honest error state with Retry on failure. ── */}
+      {providerSearchVisible ? (
+        <ProviderSearchOverlay
+          steps={providerStepStates}
+          error={error}
+          onRetry={retryProviderSearch}
+        />
+      ) : null}
+
 
       {/* ── Subtitle Layer (lifts above the bottom deck while chrome is
           visible so cues are never hidden behind the timeline). ── */}
@@ -2351,28 +2463,16 @@ export default function WatchScreen() {
         </View>
       ) : null}
 
-      {/* ── Embed frame: the same player silhouette as native inline — scrimmed
-          top bar (back / title / EMBED pill) and scrimmed bottom deck
-          (provider line / fullscreen). The WebView keeps its own playback
-          controls; this frame only makes it read as the same player. Taps
-          pass through to the WebView (box-none), buttons stay hittable. */}
+      {/* ── Embed frame: scrimmed bottom deck (provider line / fullscreen)
+          keeps it reading as the same player. The top header is gone — the
+          WebView keeps its own playback controls and hardware Back handles
+          navigation. Taps pass through to the WebView (box-none). ── */}
       {embedSource && !source ? (
         <View style={styles.embedFrame} pointerEvents="box-none">
           <View pointerEvents="none" style={styles.scrimTopSoft} />
           <View pointerEvents="none" style={styles.scrimTopMain} />
           <View pointerEvents="none" style={styles.scrimBottomSoft} />
           <View pointerEvents="none" style={styles.scrimBottomMain} />
-          <View style={styles.embedTopBar}>
-            <Pressable onPress={() => { if (immersiveFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
-              <ArrowLeft size={22} color="#FFF" />
-            </Pressable>
-            <Text style={styles.playerTitle} numberOfLines={1} ellipsizeMode="tail">{`${title} - Episode ${episode}`}</Text>
-            <View style={styles.topRightRow}>
-              <View style={styles.subPillBadge}>
-                <Text style={styles.subPillBadgeText}>EMBED</Text>
-              </View>
-            </View>
-          </View>
           <View style={styles.embedBottomDeck}>
             <View style={styles.embedBottomInfo}>
               <Text style={styles.embedBottomLabel} numberOfLines={1}>{activeProvider ? `${activeProvider.label} · EMBEDDED STREAM` : "EMBEDDED STREAM"}</Text>
@@ -2415,7 +2515,7 @@ export default function WatchScreen() {
           When hidden they are fully unmounted so they never block touches
           on the gesture layer. pointerEvents switches with visibility, so
           buttons still win hit-test when chrome is up. */}
-      {source && controlsRendered ? (
+      {source && playbackStarted && controlsRendered ? (
         <Animated.View style={[styles.controlsBackdrop, immersiveFullscreen && styles.controlsBackdropFullscreen, { opacity: controlsOpacity }]} pointerEvents={showControls && !playerLocked ? "box-none" : "none"}>
           {/* Edge scrims — layered bands fake a gradient without adding a
               native dependency; keeps top/bottom rows readable like the
@@ -2424,25 +2524,19 @@ export default function WatchScreen() {
           <View pointerEvents="none" style={styles.scrimTopMain} />
           <View pointerEvents="none" style={styles.scrimBottomSoft} />
           <View pointerEvents="none" style={styles.scrimBottomMain} />
-          {/* TOP BAR */}
-          <View style={styles.topBar}>
-            <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-            <Pressable onPress={() => { if (immersiveFullscreen) exitFullscreen(); else router.back(); }} accessibilityRole="button" accessibilityLabel="Go back" style={styles.iconButton} hitSlop={10}>
-              <ArrowLeft size={22} color="#FFF" />
-            </Pressable>
-            <Text style={styles.playerTitle} numberOfLines={1} ellipsizeMode="tail">{`${title} - Episode ${episode}`}</Text>
-            <View style={styles.topRightRow}>
-              <Pressable onPress={() => setActivePanel("speed")} accessibilityRole="button" accessibilityLabel="Playback speed" style={styles.iconButton} hitSlop={8}>
-                <Speedometer size={18} color="#FFF" />
-              </Pressable>
-              <Pressable onPress={() => setActivePanel(activePanel === "subtitles" ? null : "subtitles")} accessibilityRole="button" accessibilityLabel="Subtitles" style={[styles.iconButton, activePanel === "subtitles" && styles.iconButtonActive]} hitSlop={8}>
-                <Subtitles size={18} color={activePanel === "subtitles" ? "#8CCAFF" : "#FFF"} />
-              </Pressable>
-              <Pressable onPress={() => setActivePanel(activePanel === "settings" ? null : "settings")} accessibilityRole="button" accessibilityLabel="Settings" style={[styles.iconButton, activePanel === "settings" && styles.iconButtonActive]} hitSlop={8}>
-                <Gear size={18} color={activePanel === "settings" ? "#8CCAFF" : "#FFF"} />
-              </Pressable>
-            </View>
-          </View>
+          {/* TOP BAR — removed in the cinematic redesign. Subtitles / settings
+              / server pickers live in the bottom action rail; hardware Back
+              handles navigation. */}
+
+          {/* CENTER TRIO — rewind 10 · play/pause · forward 10, floating on
+              the exact video center and fading with the chrome. */}
+          <CenterControls
+            isPlaying={isPlaying}
+            compact={compactPlayerControls}
+            onPlayPause={() => setIsPlaying((p) => !p)}
+            onRewind={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(-10); }}
+            onForward={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(10); }}
+          />
 
           {/* BOTTOM CONTROLS */}
           <View style={styles.bottomDeck}>
@@ -2462,66 +2556,70 @@ export default function WatchScreen() {
             <View style={styles.timelineRow}>
               <Text style={styles.timeLabel}>{formatTime(currentTime)}</Text>
               <View style={styles.progressBarTrack} onLayout={onProgressLayout} onTouchStart={onBarTouchStart} onTouchMove={onBarTouchMove} onTouchEnd={seekFromBar} accessibilityRole="adjustable" accessibilityLabel="Seek bar">
+                <View pointerEvents="none" style={styles.progressTrackBg} />
                 <View style={[styles.progressBuffered, dragPct !== null && styles.progressTrackThick, { width: `${bufferPct}%` }]} />
                 <View style={[styles.progressPlayed, dragPct !== null && styles.progressTrackThick, { width: `${dragPct !== null ? dragPct : progressPct}%` }]} />
                 {chapterTrack.map((segment) => <View key={segment.kind} style={[styles.chapterMarker, { left: `${segment.leftPct}%`, width: `${segment.widthPct}%` }]} />)}
-                <View style={[styles.scrubberKnob, dragPct !== null && styles.scrubberKnobActive, { left: `${dragPct !== null ? dragPct : progressPct}%` }]} />
+                <Animated.View style={[styles.scrubberKnob, { left: `${dragPct !== null ? dragPct : progressPct}%`, transform: [{ scale: knobScale }] }]} />
                 {dragPct !== null ? <View style={[styles.dragPreview, { left: `${Math.max(0, Math.min(dragPct, 100))}%` }]}><Text style={styles.dragPreviewText}>{formatTime((dragPct / 100) * duration)}</Text></View> : null}
               </View>
               <Text style={styles.timeLabel}>{formatTime(duration)}</Text>
             </View>
 
-            {/* Action rail — reference layout: lock+volume | −10 prev play next +10 | download fullscreen.
-                ±10 uses numbered icons — the old rail had two identical SkipBack/SkipForward
-                pairs (±10 vs prev/next episode) that were impossible to tell apart. */}
+            {/* Action rail — reference layout: lock+volume | prev/next episode | download PiP fullscreen.
+                The ±10 / play-pause wheel lives at the video center now, so the
+                rail only carries what the center trio does not. */}
             <View style={[styles.actionRail, compactPlayerControls && styles.actionRailCompact]}>
               <View style={[styles.railSide, compactPlayerControls && styles.railSideCompact]}>
-                <Pressable onPress={engagePlayerLock} accessibilityRole="button" accessibilityLabel="Lock player controls" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                <Pressable onPress={engagePlayerLock} accessibilityRole="button" accessibilityLabel="Lock player controls" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                   <Lock size={18} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setMuted((m) => !m); }} accessibilityRole="button" accessibilityLabel={muted ? "Unmute" : "Mute"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setMuted((m) => !m); }} accessibilityRole="button" accessibilityLabel={muted ? "Unmute" : "Mute"} style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                   {muted ? <SpeakerNone size={18} color="#FFF" /> : <SpeakerHigh size={18} color="#FFF" />}
+                </Pressable>
+                <Pressable onPress={() => setActivePanel(activePanel === "subtitles" ? null : "subtitles")} accessibilityRole="button" accessibilityLabel="Subtitles" aria-selected={activePanel === "subtitles"} style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, activePanel === "subtitles" && styles.railBtnActive, pressed && styles.railBtnPressed]} hitSlop={8}>
+                  <SubtitlesIcon size={18} color={activePanel === "subtitles" ? playerTheme.accentBright : "#FFF"} />
+                </Pressable>
+                <Pressable onPress={() => setActivePanel(activePanel === "settings" ? null : "settings")} accessibilityRole="button" accessibilityLabel="Settings" aria-selected={activePanel === "settings"} style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, activePanel === "settings" && styles.railBtnActive, pressed && styles.railBtnPressed]} hitSlop={8}>
+                  <Gear size={18} color={activePanel === "settings" ? playerTheme.accentBright : "#FFF"} />
                 </Pressable>
               </View>
               <View style={[styles.railCenter, compactPlayerControls && styles.railCenterCompact]}>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(-10); }} accessibilityRole="button" accessibilityLabel="Back 10 seconds" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
-                  <AppIcon name="rewind-10" size={23} color="#FFF" />
-                </Pressable>
-                <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !previousKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
+                <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, !previousKnownEpisode && styles.railBtnDisabled, pressed && styles.railBtnPressed]} hitSlop={8}>
                   <SkipBack size={20} color="#FFF" />
                 </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); setIsPlaying((p) => !p); }} onLongPress={beginHoldSpeed} onPressOut={endHoldSpeed} delayLongPress={400} accessibilityRole="button" accessibilityLabel={isPlaying ? "Pause" : "Play"} accessibilityHint="Hold for 2x speed" style={({ pressed }) => [styles.bigPlayButton, compactPlayerControls && styles.bigPlayButtonCompact, immersiveFullscreen && styles.bigPlayButtonFullscreen, pressed && styles.playerButtonPressed]}>
-                  {isPlaying ? <Pause size={26} color="#172B45" /> : <Play size={26} color="#172B45" style={{ marginLeft: 2 }} />}
-                </Pressable>
-                <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact, !nextKnownEpisode && styles.railBtnDisabled]} hitSlop={8}>
+                <Pressable disabled={!nextKnownEpisode} onPress={nextEpisode} accessibilityRole="button" accessibilityLabel="Next episode" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, !nextKnownEpisode && styles.railBtnDisabled, pressed && styles.railBtnPressed]} hitSlop={8}>
                   <SkipForward size={20} color="#FFF" />
-                </Pressable>
-                <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); seekBy(10); }} accessibilityRole="button" accessibilityLabel="Forward 10 seconds" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
-                  <AppIcon name="fast-forward-10" size={23} color="#FFF" />
                 </Pressable>
               </View>
               <View style={[styles.railSideRight, compactPlayerControls && styles.railSideCompact]}>
+                <Pressable onPress={() => setActivePanel(activePanel === "server" ? null : "server")} accessibilityRole="button" accessibilityLabel="Change server" accessibilityHint="Opens the server picker" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, activePanel === "server" && styles.railBtnActive, pressed && styles.railBtnPressed]} hitSlop={8}>
+                  <MoreVertical size={18} color={activePanel === "server" ? playerTheme.accentBright : "#FFF"} />
+                </Pressable>
+                <Pressable onPress={() => setActivePanel(activePanel === "episodes" ? null : "episodes")} accessibilityRole="button" accessibilityLabel="Episode list" accessibilityHint="Opens the episode selector" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, activePanel === "episodes" && styles.railBtnActive, pressed && styles.railBtnPressed]} hitSlop={8}>
+                  <ListVideo size={19} color="#FFF" />
+                </Pressable>
                 {downloadProgress !== null ? (
                   /* expo-file-system's File.downloadFileAsync emits no incremental
                      progress (only the final 1.0), so show an honest spinner. */
                   <View style={[styles.downloadBtn, compactPlayerControls && styles.railBtnCompact]} accessibilityLabel="Downloading episode">
                     <ActivityIndicator size="small" color="#FFF" />
                   </View>
-                ) : offlineDownload ? (
-                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); playOffline(); }} onLongPress={() => { void removeDownload(); }} accessibilityRole="button" accessibilityLabel="Play saved download" accessibilityHint="Long press to remove the saved copy" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                 ) : offlineDownload ? (
+                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); playOffline(); }} onLongPress={() => { void removeDownload(); }} accessibilityRole="button" accessibilityLabel="Play saved download" accessibilityHint="Long press to remove the saved copy" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                     <DownloadSimple size={19} color={nothing.green} />
                   </Pressable>
                 ) : (
-                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onDownloadPress(); }} accessibilityRole="button" accessibilityLabel="Download episode" accessibilityHint="Opens quality options when the provider offers them" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                  <Pressable onPress={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onDownloadPress(); }} accessibilityRole="button" accessibilityLabel="Download episode" accessibilityHint="Opens quality options when the provider offers them" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                     <Download size={19} color="#FFF" />
                   </Pressable>
                 )}
                 {pipAvailable && source ? (
-                  <Pressable onPress={() => enterPiP()} accessibilityRole="button" accessibilityLabel="Picture in picture" style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                  <Pressable onPress={() => enterPiP()} accessibilityRole="button" accessibilityLabel="Picture in picture" style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                     <PictureInPicture size={18} color="#FFF" />
                   </Pressable>
                 ) : null}
-                <Pressable onPress={immersiveFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={immersiveFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={[styles.railBtn, compactPlayerControls && styles.railBtnCompact]} hitSlop={8}>
+                <Pressable onPress={immersiveFullscreen ? exitFullscreen : enterFullscreen} accessibilityRole="button" accessibilityLabel={immersiveFullscreen ? "Exit fullscreen" : "Enter fullscreen"} style={({ pressed }) => [styles.railBtn, compactPlayerControls && styles.railBtnCompact, pressed && styles.railBtnPressed]} hitSlop={8}>
                   {immersiveFullscreen ? <ArrowsIn size={18} color="#FFF" /> : <ArrowsOut size={18} color="#FFF" />}
                 </Pressable>
               </View>
@@ -2532,14 +2630,14 @@ export default function WatchScreen() {
 
       {/* Skip Intro/Outro (positioned bottom-right) */}
       {skipKind === "intro" && !playerLocked ? (
-        <Pressable style={styles.skipButtonOverlay} onPress={() => skip("intro")} accessibilityRole="button" accessibilityLabel="Skip intro" accessibilityHint="Skips the opening sequence">
+        <Pressable style={({ pressed }) => [styles.skipButtonOverlay, pressed && styles.skipButtonPressed]} onPress={() => skip("intro")} accessibilityRole="button" accessibilityLabel="Skip intro" accessibilityHint="Skips the opening sequence">
           <SkipForward size={14} color="#FFF" />
           <Text style={styles.skipButtonText}>{`SKIP INTRO`}</Text>
           <Text style={styles.skipCountdown}>{`· ${Math.max(0, Math.round((skipSegments.intro?.endTime ?? currentTime) - currentTime))}s`}</Text>
         </Pressable>
       ) : null}
-      {skipKind === "outro" && !playerLocked ? (
-        <Pressable style={styles.skipButtonOverlay} onPress={() => skip("outro")} accessibilityRole="button" accessibilityLabel="Skip outro" accessibilityHint="Skips the ending sequence">
+      {skipKind === "outro" && !playerLocked && !upNextVisible ? (
+        <Pressable style={({ pressed }) => [styles.skipButtonOverlay, pressed && styles.skipButtonPressed]} onPress={() => skip("outro")} accessibilityRole="button" accessibilityLabel="Skip outro" accessibilityHint="Skips the ending sequence">
           <SkipForward size={14} color="#FFF" />
           <Text style={styles.skipButtonText}>{`SKIP OUTRO`}</Text>
           <Text style={styles.skipCountdown}>{`· ${Math.max(0, Math.round((skipSegments.outro?.endTime ?? currentTime) - currentTime))}s`}</Text>
@@ -2568,7 +2666,7 @@ export default function WatchScreen() {
       {/* Locked state */}
       {playerLocked ? (
         <Pressable style={[styles.lockedPill, unlockArmed && styles.lockedPillArmed]} onPress={requestUnlock} accessibilityRole="button" accessibilityLabel="Unlock player" accessibilityHint="Tap twice to unlock player controls">
-          <Lock size={16} color={unlockArmed ? "#8CCAFF" : "#FFF"} />
+          <Lock size={16} color={unlockArmed ? playerTheme.accentBright : "#FFFFFF"} />
           <Text style={styles.lockedText}>{unlockArmed ? "Tap again to unlock" : "Controls locked"}</Text>
         </Pressable>
       ) : null}
@@ -2599,16 +2697,19 @@ export default function WatchScreen() {
         </View>
       ) : null}
 
-      {/* ── Settings panel — quality + playback info ── */}
-      {source && activePanel === "settings" && !playerLocked ? <View style={ps.settingsOverlay}>
-        <BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+      {/* ── Settings panel — quality + speed + audio + technical info.
+          Bottom sheet in portrait, docked side panel in landscape. ── */}
+      {source && activePanel === "settings" && !playerLocked ? <View style={immersiveFullscreen ? ps.settingsOverlay : ps.settingsSheet}>
+        <PanelSheet mode={immersiveFullscreen ? "side" : "bottom"}>
+        <BlurView pointerEvents="none" intensity={32} tint="dark" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <View pointerEvents="none" style={ps.grabBar} />
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Settings</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close settings" hitSlop={8}>
-            <X size={15} color="#142B4B" />
+            <X size={15} color="#FFFFFF" />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={ps.settingsContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[ps.settingsContent, !immersiveFullscreen && { paddingBottom: Math.max(12, safeAreaInsets.bottom + 14) }]} showsVerticalScrollIndicator={false}>
           <Text style={ps.sectionLabel}>{t("player.quality")}</Text>
           <View style={ps.chipRow}>
             {displayedQualityOptions.length ? displayedQualityOptions.map((item: WatchQualityOption) => {
@@ -2623,6 +2724,27 @@ export default function WatchScreen() {
           })()}
           {parsedQualityNote ? <Text style={ps.emptyLine} numberOfLines={1}>{parsedQualityNote}</Text> : null}
 
+          <Text style={ps.sectionLabel}>{t("player.playbackSpeed")}</Text>
+          <View style={ps.chipRow}>
+            {[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => {
+              const active = speed === val;
+              return <Pressable key={val} onPress={() => { setSpeed(val); lockedSpeed.current = val; }} style={[ps.chip, active && ps.chipActive]}><Text style={[ps.chipText, active && ps.chipTextActive]}>{val === 1.0 ? "1.0x" : `${val}x`}</Text></Pressable>;
+            })}
+          </View>
+
+          <Text style={ps.sectionLabel}>{t("player.audio")}</Text>
+          <View style={ps.chipRow}>
+            <Pressable onPress={() => { if (language !== "sub" && providers.sub.length) selectLanguage("sub"); }} style={[ps.chip, language === "sub" && ps.chipActive]}><Text style={[ps.chipText, language === "sub" && ps.chipTextActive]}>{`SUB · ${providers.sub.length || 1}`}</Text></Pressable>
+            <Pressable onPress={() => { if (language !== "dub" && providers.dub.length) selectLanguage("dub"); }} disabled={!providers.dub.length} style={[ps.chip, language === "dub" && ps.chipActive, !providers.dub.length && ps.chipDisabled]}><Text style={[ps.chipText, !providers.dub.length && ps.chipTextDisabled, language === "dub" && ps.chipTextActive]}>{`DUB${providers.dub.length ? ` · ${providers.dub.length}` : ""}`}</Text></Pressable>
+          </View>
+
+          <Text style={ps.sectionLabel}>{t("player.subtitles")}</Text>
+          <View style={ps.chipRow}>
+            <Pressable onPress={() => { setActivePanel("subtitles"); }} style={[ps.chip, subtitlePrefs?.enabled && selectedSubtitleUrl ? ps.chipActive : null]}>
+              <Text style={[ps.chipText, subtitlePrefs?.enabled && selectedSubtitleUrl ? ps.chipTextActive : null]}>Subtitle settings</Text>
+            </Pressable>
+          </View>
+
           <Text style={ps.sectionLabel}>INFO</Text>
           <View style={ps.infoRow}>
             <Text style={ps.infoLabel}>Server</Text>
@@ -2630,7 +2752,11 @@ export default function WatchScreen() {
           </View>
           <View style={ps.infoRow}>
             <Text style={ps.infoLabel}>Quality</Text>
-            <Text style={ps.infoValue}>{displayedQuality || "Auto"}</Text>
+            <Text style={ps.infoValue}>{displayedQuality || "Auto"}{liveHeight ? ` · ${liveHeight}p` : ""}</Text>
+          </View>
+          <View style={ps.infoRow}>
+            <Text style={ps.infoLabel}>Duration</Text>
+            <Text style={ps.infoValue}>{duration > 0 ? formatTime(duration) : "—"}</Text>
           </View>
           <View style={ps.infoRow}>
             <Text style={ps.infoLabel}>Language</Text>
@@ -2645,18 +2771,21 @@ export default function WatchScreen() {
             <Text style={ps.infoValue}>{source?.type?.toUpperCase() || "HLS"}</Text>
           </View>
         </ScrollView>
+        </PanelSheet>
       </View> : null}
 
       {/* ── Subtitle panel — language, size, bg, outline, font ── */}
-      {source && activePanel === "subtitles" && !playerLocked ? <View style={ps.settingsOverlay}>
-        <BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+      {source && activePanel === "subtitles" && !playerLocked ? <View style={immersiveFullscreen ? ps.settingsOverlay : ps.settingsSheet}>
+        <PanelSheet mode={immersiveFullscreen ? "side" : "bottom"}>
+        <BlurView pointerEvents="none" intensity={32} tint="dark" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <View pointerEvents="none" style={ps.grabBar} />
         <View style={ps.settingsHeader}>
           <Text style={ps.settingsHeaderText}>Subtitles</Text>
           <Pressable onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close subtitles" hitSlop={8}>
-            <X size={15} color="#142B4B" />
+            <X size={15} color="#FFFFFF" />
           </Pressable>
         </View>
-        <ScrollView contentContainerStyle={ps.settingsContent} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[ps.settingsContent, !immersiveFullscreen && { paddingBottom: Math.max(12, safeAreaInsets.bottom + 14) }]} showsVerticalScrollIndicator={false}>
           <Text style={ps.sectionLabel}>{t("player.subtitles")}</Text>
           <View style={ps.chipRow}>
             {source.subtitles?.length ? <>
@@ -2701,7 +2830,37 @@ export default function WatchScreen() {
             })}
           </View>
         </ScrollView>
+        </PanelSheet>
       </View> : null}
+
+      {/* ── Episode selector — Netflix-styled list; bottom sheet in portrait,
+          side panel in landscape. Rows go through goToEpisode (real stream
+          switch via router.replace, native pipeline intact). ── */}
+      {source && activePanel === "episodes" && !playerLocked ? <View style={immersiveFullscreen ? ps.settingsOverlay : [ps.settingsSheet, { height: Math.min(Math.round(viewportHeight * 0.62), 640) }]}>
+        <PanelSheet mode={immersiveFullscreen ? "side" : "bottom"}>
+        <BlurView pointerEvents="none" intensity={32} tint="dark" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+        <EpisodePanel
+          episodes={displayEpisodes}
+          activeEpisode={episode}
+          progressMap={historyProgressMap}
+          hasPrevious={Boolean(previousKnownEpisode)}
+          hasNext={Boolean(nextKnownEpisode)}
+          onPrevious={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)}
+          onNext={() => nextKnownEpisode && goToEpisode(nextKnownEpisode)}
+          onSelect={goToEpisode}
+          onClose={() => setActivePanel(null)}
+        />
+        </PanelSheet>
+      </View> : null}
+
+      {/* Panel backdrop — tap outside a player panel closes it. Rendered
+          below the panels (zIndex 3 < 4) and above the chrome, so chrome
+          buttons are covered exactly while a panel is up. */}
+      {source && activePanel && !playerLocked ? (
+        <View style={ps.panelBackdrop} pointerEvents="auto">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setActivePanel(null)} accessibilityRole="button" accessibilityLabel="Close panel" />
+        </View>
+      ) : null}
 
       {source && sleepRemaining && !playerLocked ? <SleepTimerPill remaining={sleepRemaining} onPress={() => setActivePanel("settings")} /> : null}
     </View>
@@ -2712,27 +2871,28 @@ export default function WatchScreen() {
     {/* ── Below player ── */}
     <ScrollView ref={infoScrollRef} onScroll={(event) => { infoScrollOffsetY.current = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16} style={immersiveFullscreen ? styles.hiddenPortraitInfo : undefined} contentContainerStyle={[styles.scroll, { paddingBottom: Math.max(40, safeAreaInsets.bottom + 24) }]} showsVerticalScrollIndicator={false} removeClippedSubviews={Platform.OS === "android"}>
       <View style={[styles.bentoTopRow, wideBento && styles.bentoTopRowWide]}>
-      <View style={[styles.th3Section, wideBento && styles.bentoInfoWide]}>
-        <Text style={styles.th3Watching}><Text style={styles.th3WatchingGreen}>You are watching </Text><Text style={styles.th3WatchingWhite}>Episode {episode}</Text></Text>
-        <View style={styles.watchAnimeCard}>
-          {image ? <Image source={{ uri: image }} style={styles.watchAnimePoster} contentFit="cover" cachePolicy="memory-disk" /> : null}
-          <View style={styles.watchAnimeCopy}>
-            <Text style={styles.watchAnimeEyebrow}>NOW STREAMING · EP {episode}</Text>
-            <Text style={styles.watchAnimeTitle} numberOfLines={2}>{title}</Text>
-            {selectedEpisode?.title ? <Text style={styles.watchAnimeEpisode} numberOfLines={2}>{selectedEpisode.title}</Text> : null}
-            <View style={styles.watchMetaRow}>
-              {animeQuery.data?.averageScore != null ? <Text style={styles.watchMetaBadge}>★ {animeQuery.data.averageScore}%</Text> : null}
-              {animeQuery.data?.seasonYear ? <Text style={styles.watchMetaBadge}>{animeQuery.data.seasonYear}</Text> : null}
-              {animeQuery.data?.format ? <Text style={styles.watchMetaBadge}>{animeQuery.data.format.replace(/_/g, " ")}</Text> : null}
-            </View>
-          </View>
-        </View>
-        {animeQuery.data?.genres?.length ? <View style={styles.watchGenreRow}>{animeQuery.data.genres.slice(0, 4).map((genre) => <Text key={genre} style={styles.watchGenreBadge}>{genre}</Text>)}</View> : null}
-        {animeQuery.data?.description ? <View style={styles.watchSynopsis}>
-          <Text style={styles.watchSynopsisLabel}>SYNOPSIS</Text>
-          <Text style={styles.watchSynopsisText} numberOfLines={synopsisExpanded ? undefined : 4}>{animeQuery.data.description.replace(/<[^>]+>/g, "")}</Text>
-          {animeQuery.data.description.replace(/<[^>]+>/g, "").length > 180 ? <Pressable onPress={() => setSynopsisExpanded((value) => !value)} accessibilityRole="button" accessibilityLabel={synopsisExpanded ? "Show less synopsis" : "Read full synopsis"} style={styles.synopsisToggle}><Text style={styles.synopsisToggleText}>{synopsisExpanded ? "SHOW LESS" : "READ MORE"}</Text><CaretRight size={14} color="#3985F5" style={synopsisExpanded ? { transform: [{ rotate: "-90deg" }] } : { transform: [{ rotate: "90deg" }] }} /></Pressable> : null}
-        </View> : null}
+      <View style={[styles.bentoInfoWide, wideBento && styles.watchInfoColumn]}>
+        {/* Cinematic bottom info — poster, title, genres, synopsis, rating
+            with the four action pills, over the real backdrop gradient. */}
+        <WatchInfo
+          animeId={animeId}
+          title={title}
+          posterUri={image || ""}
+          episode={episode}
+          seasonYear={animeQuery.data?.seasonYear ?? null}
+          genres={animeQuery.data?.genres?.slice(0, 4) ?? []}
+          synopsis={synopsisText}
+          rating={animeQuery.data?.averageScore ?? null}
+          actions={{ favorited, downloading: downloadProgress !== null, saved: Boolean(offlineDownload) }}
+          onOpenInfo={() => router.push({ pathname: "/anime/[id]", params: { id: String(animeId) } } as never)}
+          onToggleFavorite={toggleFavorite}
+          onDownload={() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); onDownloadPress(); }}
+          onShare={shareAnime}
+          onEpisodeList={scrollToEpisodeList}
+        />
+        {/* "You are watching" banner lives inside the WatchInfo card now —
+            only the prev/next episode navigation stays here. */}
+        <View style={styles.th3Section}>
         <View style={styles.watchEpisodeNav}>
           <Pressable disabled={!previousKnownEpisode} onPress={() => previousKnownEpisode && goToEpisode(previousKnownEpisode)} accessibilityRole="button" accessibilityLabel="Previous episode" style={[styles.watchEpisodeButton, !previousKnownEpisode && styles.watchEpisodeDisabled]}>
             <SkipBack size={16} color="#2878F0" /><Text style={styles.watchEpisodeButtonText}>PREVIOUS</Text>
@@ -2742,6 +2902,7 @@ export default function WatchScreen() {
           </Pressable>
         </View>
         {swipeDirectionHint ? <View style={styles.swipeHintRow}><AppIcon name="chevron-left" size={12} color={previousKnownEpisode ? nothing.muted : nothing.dim} /><Text style={[styles.swipeHintText, !previousKnownEpisode && !nextKnownEpisode && { color: nothing.dim }]}>{swipeDirectionHint}</Text><AppIcon name="chevron-right" size={12} color={nextKnownEpisode ? nothing.muted : nothing.dim} /></View> : null}
+        </View>
       </View>
       {(providers.sub.length > 0 || providers.dub.length > 0 || activeProviders.length > 0) ? <View style={[styles.providerSection, wideBento && styles.providerSectionWide]}>
         <View style={styles.bentoSectionHeading}><View><Text style={styles.bentoEyebrow}>STREAM OPTIONS</Text><Text style={styles.th3EpTitle}>Choose your stream</Text></View><View style={styles.liveIndicator}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View></View>
@@ -2753,7 +2914,7 @@ export default function WatchScreen() {
         </View>
       </View> : null}
       </View>
-      <View style={styles.episodesSection}>
+      <View style={styles.episodesSection} onLayout={(event) => { episodesSectionY.current = event.nativeEvent.layout.y; }}>
         <View style={styles.th3EpHead}><View><Text style={styles.bentoEyebrow}>EPISODE GUIDE</Text><Text style={styles.th3EpTitle}>{t("player.listOfEpisodes")}</Text></View><Text style={styles.episodeCountBadge}>{filteredEpisodes.length} EP</Text></View>
         <View style={styles.th3EpsRow}>
           <AppIcon name="options" size={14} color="#71839A" />
@@ -2771,10 +2932,10 @@ export default function WatchScreen() {
     </ScrollView>
 
     {/* ── Modal Pickers ── */}
-    <Modal visible={activePanel === "speed"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.playbackSpeed")}</Text>{[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => <Pressable key={val} style={[styles.modalItem, speed === val && styles.modalItemActive]} onPress={() => { setSpeed(val); lockedSpeed.current = val; setActivePanel(null); }}><Text style={[styles.modalItemText, speed === val && styles.modalItemTextActive]}>{val === 1.0 ? "1.0x (Normal)" : `${val}x`}</Text>{speed === val && <Check size={20} color="#3985F5" />}</Pressable>)}</View></Pressable></Modal>
+    <Modal visible={activePanel === "speed"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.playbackSpeed")}</Text>{[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map((val) => <Pressable key={val} style={[styles.modalItem, speed === val && styles.modalItemActive]} onPress={() => { setSpeed(val); lockedSpeed.current = val; setActivePanel(null); }}><Text style={[styles.modalItemText, speed === val && styles.modalItemTextActive]}>{val === 1.0 ? "1.0x (Normal)" : `${val}x`}</Text>{speed === val && <Check size={20} color={playerTheme.accentBright} />}</Pressable>)}</View></Pressable></Modal>
 
     <Modal visible={activePanel === "server"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>{t("player.selectServer")}</Text>{providers.sub.length > 0 && providers.dub.length > 0 ? <View style={styles.languageRow}>{(["sub", "dub"] as Language[]).map((item) => <Pressable key={item} onPress={() => selectLanguage(item)} style={[styles.language, language === item && styles.languageActive]}><Text style={[styles.languageText, language === item && styles.languageTextActive]}>{item === "sub" ? `SUB · ${providers.sub.length}` : `DUB · ${providers.dub.length}`}</Text></Pressable>)}</View> : null}
-      {selectableProviders.length ? selectableProviders.map(({ provider, index }) => <Pressable key={provider.id} onPress={() => { selectServer(index); setActivePanel(null); }} style={[styles.modalItem, index === serverIndex && styles.modalItemActive]}><Text style={[styles.modalItemText, index === serverIndex && styles.modalItemTextActive]}>{provider.label}</Text>{index === serverIndex && <Check size={20} color="#3985F5" />}</Pressable>) : <Text style={styles.modalItemSub}>Looking for a working server…</Text>}</View></Pressable></Modal>
+      {selectableProviders.length ? selectableProviders.map(({ provider, index }) => <Pressable key={provider.id} onPress={() => { selectServer(index); setActivePanel(null); }} style={[styles.modalItem, index === serverIndex && styles.modalItemActive]}><Text style={[styles.modalItemText, index === serverIndex && styles.modalItemTextActive]}>{provider.label}</Text>{index === serverIndex && <Check size={20} color={playerTheme.accentBright} />}</Pressable>) : <Text style={styles.modalItemSub}>Looking for a working server…</Text>}</View></Pressable></Modal>
 
     {/* Download quality picker: backend per-quality file links for this language */}
     <Modal visible={activePanel === "download"} transparent animationType="fade"><Pressable style={styles.modalBackdrop} onPress={() => setActivePanel(null)}><View style={styles.modalSheet}><BlurView pointerEvents="none" intensity={32} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} /><Text style={styles.modalTitle}>DOWNLOAD · {language.toUpperCase()} · EP {episode}</Text>
@@ -2806,7 +2967,7 @@ export default function WatchScreen() {
                   </View>
                   <View style={styles.chapterItemRight}>
                     <Text style={styles.chapterDuration}>{formatTime(durationSec)}</Text>
-                    {isActive ? <Play size={16} color="#3985F5" /> : isPast ? <Check size={16} color={nothing.dim} /> : <CaretRight size={16} color={nothing.muted} />}
+                    {isActive ? <Play size={16} color={playerTheme.accentBright} /> : isPast ? <Check size={16} color={nothing.dim} /> : <CaretRight size={16} color={nothing.muted} />}
                   </View>
                 </Pressable>
               );
@@ -2821,25 +2982,31 @@ export default function WatchScreen() {
 // ── Styles ──
 const ps = StyleSheet.create({
   videoShellFullscreen: { position: "absolute", zIndex: 50, elevation: 50, top: 0, right: 0, bottom: 0, left: 0, width: "100%", maxWidth: "100%", height: "100%", alignSelf: "stretch", aspectRatio: undefined, borderWidth: 0, borderRadius: 0, backgroundColor: "#000000", justifyContent: "center" },
-  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 264, maxWidth: "84%", borderRadius: 18, backgroundColor: "rgba(245,249,255,0.88)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 12 },
-  settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#B8D5F5" },
-  settingsHeaderText: { color: "#142B4B", fontSize: 13, fontWeight: "900", letterSpacing: 0.3 },
+  // Landscape: docked side panel. Portrait: bottom sheet.
+  settingsOverlay: { position: "absolute", zIndex: 4, top: 6, right: 6, bottom: 6, width: 268, maxWidth: "84%", borderRadius: 16, backgroundColor: "rgba(11,14,19,0.88)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)", elevation: 12 },
+  settingsSheet: { position: "absolute", zIndex: 4, left: 0, right: 0, bottom: 0, maxHeight: "72%", borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: "rgba(11,14,19,0.92)", overflow: "hidden", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)", elevation: 12 },
+  grabBar: { alignSelf: "center", marginTop: 8, marginBottom: 2, width: 40, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.28)" },
+  panelBackdrop: { ...StyleSheet.absoluteFillObject, zIndex: 3 },
+  settingsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.1)" },
+  settingsHeaderText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800", letterSpacing: 0.3 },
   settingsContent: { padding: 8, paddingBottom: 10, gap: 1 },
-  sectionLabel: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.8, marginTop: 7, marginBottom: 3, textTransform: "uppercase" },
+  sectionLabel: { color: playerTheme.accentBright, fontSize: 10, fontWeight: "900", letterSpacing: 0.8, marginTop: 7, marginBottom: 3, textTransform: "uppercase" },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 2 },
-  chip: { minHeight: 30, paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "rgba(255,255,255,0.8)", alignItems: "center", justifyContent: "center" },
-  chipActive: { backgroundColor: "#2878F0", borderColor: "#142B4B" },
-  chipText: { color: "#425B78", fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
+  chip: { minHeight: 30, paddingHorizontal: 9, borderRadius: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.14)", backgroundColor: "rgba(255,255,255,0.06)", alignItems: "center", justifyContent: "center" },
+  chipActive: { backgroundColor: playerTheme.accent, borderColor: playerTheme.accent },
+  chipText: { color: "rgba(255,255,255,0.78)", fontSize: 10, fontWeight: "800", textTransform: "uppercase" },
   chipTextActive: { color: "#FFFFFF", fontSize: 10, fontWeight: "700" },
-  emptyLine: { color: "#71839D", fontSize: 10, fontWeight: "600" },
-  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#DCEBFA" },
-  infoLabel: { color: "#71839D", fontSize: 10, fontWeight: "700" },
-  infoValue: { color: "#142B4B", fontSize: 10, fontWeight: "800" },
+  chipDisabled: { opacity: 0.4 },
+  chipTextDisabled: { color: "rgba(255,255,255,0.4)" },
+  emptyLine: { color: playerTheme.textTertiary, fontSize: 10, fontWeight: "600" },
+  infoRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)" },
+  infoLabel: { color: playerTheme.textSecondary, fontSize: 10, fontWeight: "700" },
+  infoValue: { color: "#FFFFFF", fontSize: 10, fontWeight: "800" },
   diagnosticLine: { color: "rgba(255,255,255,0.3)", fontSize: 9, fontWeight: "600", letterSpacing: 0.3, marginTop: 6 },
 });
 
 const styles = StyleSheet.create({
-  screenRoot: { flex: 1, backgroundColor: "#F5F9FF" },
+  screenRoot: { flex: 1, backgroundColor: playerTheme.stage },
   screenRootFullscreen: { backgroundColor: "#000000", overflow: "hidden" },
   hiddenPortraitInfo: { display: "none" },
   fill: { flex: 1 },
@@ -2850,23 +3017,17 @@ const styles = StyleSheet.create({
   topCopy: { flex: 1, gap: 2 },
   title: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", lineHeight: 22, letterSpacing: -0.5 },
   episodeLabel: { color: nothing.muted, fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.8 },
-  videoShell: { width: "100%", maxWidth: 1440, alignSelf: "center", aspectRatio: 16 / 9, backgroundColor: "#142B45", overflow: "hidden", position: "relative", borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 20, elevation: 4, shadowColor: "#142B45", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.12, shadowRadius: 14 },
+  videoShell: { width: "100%", alignSelf: "stretch", backgroundColor: "#08090C", borderRadius: 24, overflow: "hidden", position: "relative" },
   video: { flex: 1 },
   gestureOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 2 },
   embedChrome: { position: "absolute", top: 0, left: 0, right: 0, zIndex: 5, flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.55)" },
-  embedFrame: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "space-between", paddingHorizontal: 8, paddingVertical: 6 },
-  loadingHeader: { position: "absolute", zIndex: 4, top: 8, left: 8, right: 8, minHeight: 52, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 17, borderWidth: 1, borderColor: "rgba(255,255,255,0.86)", backgroundColor: "rgba(245,249,255,0.86)", overflow: "hidden", elevation: 5 },
-  loadingBackButton: { width: 38, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 13, backgroundColor: "#3985F5", borderWidth: 1, borderColor: "#FFFFFF" },
-  loadingHeaderCopy: { flex: 1, minWidth: 0, gap: 2 },
-  loadingHeaderTitle: { color: "#172B45", fontSize: 13, fontWeight: "900" },
-  loadingHeaderEpisode: { color: "#71839A", fontSize: 9, fontWeight: "900", letterSpacing: 0.7 },
-  embedTopBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%" },
+  embedFrame: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "flex-end", paddingHorizontal: 8, paddingVertical: 6 },
   embedBottomDeck: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", width: "100%" },
   embedBottomInfo: { flex: 1, flexShrink: 1, marginRight: 6 },
   embedBottomLabel: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "700", letterSpacing: 0.3 },
-  miniProgress: { position: "absolute", left: 0, right: 0, bottom: 0, height: 2, backgroundColor: "rgba(255,255,255,0.22)", zIndex: 2 },
+  miniProgress: { position: "absolute", left: 0, right: 0, bottom: 0, height: 3, backgroundColor: "rgba(255,255,255,0.22)", zIndex: 2 },
   miniProgressBuffered: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: "rgba(255,255,255,0.35)" },
-  miniProgressPlayed: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: "#3985F5" },
+  miniProgressPlayed: { position: "absolute", top: 0, left: 0, bottom: 0, backgroundColor: playerTheme.accent },
   statusToast: { position: "absolute", bottom: 28, alignSelf: "center", zIndex: 14, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 13, paddingVertical: 8, borderRadius: 8, backgroundColor: "rgba(0,0,0,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   statusToastText: { color: "#FFF", fontSize: 11, fontWeight: "600", letterSpacing: 0.2 },
   subtitleWrapper: { ...StyleSheet.absoluteFillObject, justifyContent: "flex-end", alignItems: "center", paddingBottom: 68, zIndex: 1 },
@@ -2876,28 +3037,24 @@ const styles = StyleSheet.create({
   controlsBackdropFullscreen: { paddingHorizontal: 20, paddingVertical: 12 },
   // Edge scrims stay light on purpose: readability bands only, never a veil
   // over the picture. They mount solely with the chrome and unmount with it.
-  scrimTopMain: { position: "absolute", top: 0, left: 0, right: 0, height: 56, backgroundColor: "rgba(0,0,0,0.22)" },
-  scrimTopSoft: { position: "absolute", top: 0, left: 0, right: 0, height: 96, backgroundColor: "rgba(0,0,0,0.10)" },
-  scrimBottomMain: { position: "absolute", bottom: 0, left: 0, right: 0, height: 80, backgroundColor: "rgba(0,0,0,0.22)" },
-  scrimBottomSoft: { position: "absolute", bottom: 0, left: 0, right: 0, height: 110, backgroundColor: "rgba(0,0,0,0.10)" },
-  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 16, overflow: "hidden", backgroundColor: "rgba(245,249,255,0.82)", borderWidth: 1, borderColor: "rgba(255,255,255,0.88)", elevation: 7, shadowColor: "#142B45", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.18, shadowRadius: 10 },
-  playerTitle: { flex: 1, flexShrink: 1, color: "#142B4B", fontSize: 13, fontWeight: "800", marginLeft: 8, marginRight: 6 },
-  topRightRow: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 0 },
-  iconButton: { width: 38, height: 38, padding: 2, justifyContent: "center", alignItems: "center", flexShrink: 0, borderRadius: 13, backgroundColor: "#3985F5", borderWidth: 1, borderColor: "rgba(255,255,255,0.92)", elevation: 3 },
-  iconButtonActive: { backgroundColor: "#8CCAFF", borderColor: "#3985F5", borderRadius: 13 },
+  scrimTopMain: { position: "absolute", top: 0, left: 0, right: 0, height: 64, backgroundColor: playerTheme.scrimTop },
+  scrimTopSoft: { position: "absolute", top: 0, left: 0, right: 0, height: 126, backgroundColor: playerTheme.scrimTopSoft },
+  scrimBottomMain: { position: "absolute", bottom: 0, left: 0, right: 0, height: 96, backgroundColor: playerTheme.scrimBottom },
+  scrimBottomSoft: { position: "absolute", bottom: 0, left: 0, right: 0, height: 150, backgroundColor: playerTheme.scrimBottomSoft },
+  topBar: { flexDirection: "row", alignItems: "center", flexWrap: "nowrap", width: "100%" },
+  iconButton: { width: 34, height: 34, padding: 0, justifyContent: "center", alignItems: "center", flexShrink: 0, borderRadius: 17, backgroundColor: playerTheme.glassBg, borderWidth: 1, borderColor: playerTheme.glassBorder },
+  iconButtonActive: { backgroundColor: playerTheme.accentSoft, borderColor: playerTheme.accentHairline, borderRadius: 17 },
   orientationBadge: { backgroundColor: "rgba(57,133,245,0.9)", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 3 },
   orientationBadgeText: { color: "#FFFFFF", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
-  subPillBadge: { backgroundColor: "#2878F0", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 8, flexShrink: 0 },
-  subPillBadgeText: { color: "#FFFFFF", fontSize: 10, fontWeight: "900", letterSpacing: 0.2, textTransform: "uppercase" },
   bottomDeck: { gap: 5, width: "100%", paddingHorizontal: 9, paddingVertical: 7, borderRadius: 18, overflow: "hidden", backgroundColor: "rgba(20,43,69,0.76)", borderWidth: 1, borderColor: "rgba(255,255,255,0.42)", elevation: 8, shadowColor: "#142B45", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.24, shadowRadius: 12 },
   timelineRow: { flexDirection: "row", alignItems: "center", gap: 4, width: "100%" },
   timeLabel: { color: "#FFF", fontSize: 11, fontWeight: "600", minWidth: 34, textAlign: "center", flexShrink: 0, fontVariant: ["tabular-nums"] },
-  progressBarTrack: { flex: 1, height: 16, justifyContent: "center" },
-  progressBuffered: { position: "absolute", height: 2, backgroundColor: "rgba(255,255,255,0.45)", borderRadius: 1 },
-  progressPlayed: { position: "absolute", height: 3, backgroundColor: "#78BFFF", borderRadius: 2 },
-  progressTrackThick: { height: 3, borderRadius: 1.5 },
-  scrubberKnob: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: "#FFF", marginLeft: -5, top: 3, elevation: 3 },
-  scrubberKnobActive: { width: 14, height: 14, borderRadius: 7, marginLeft: -7, top: 1 },
+  progressBarTrack: { flex: 1, height: 20, justifyContent: "center" },
+  progressTrackBg: { position: "absolute", left: 0, right: 0, height: 4, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.22)", top: 8 },
+  progressBuffered: { position: "absolute", height: 4, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: 2, top: 8 },
+  progressPlayed: { position: "absolute", height: 4, backgroundColor: playerTheme.accent, borderRadius: 2, top: 8 },
+  progressTrackThick: { height: 7, borderRadius: 3.5, top: 6.5 },
+  scrubberKnob: { position: "absolute", width: 14, height: 14, borderRadius: 7, backgroundColor: playerTheme.accent, borderWidth: 1.5, borderColor: "#FFFFFF", marginLeft: -7, top: 3, elevation: 3, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.3, shadowRadius: 2 },
   dragPreview: { position: "absolute", top: -28, marginLeft: -24, backgroundColor: "rgba(0,0,0,0.85)", borderRadius: 5, paddingHorizontal: 7, paddingVertical: 3 },
   dragPreviewText: { color: "#FFFFFF", fontSize: 11, fontWeight: "700", fontVariant: ["tabular-nums"] },
   actionRail: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", width: "100%" },
@@ -2909,77 +3066,69 @@ const styles = StyleSheet.create({
   railSideRight: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 2, flexShrink: 0 },
   railCenter: { flexDirection: "row", alignItems: "center", gap: 2, flexShrink: 1, justifyContent: "center" },
   railBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0 },
+  railBtnPressed: { transform: [{ scale: 0.86 }], opacity: 0.86 },
   railBtnDisabled: { opacity: 0.35 },
+  railBtnActive: { backgroundColor: playerTheme.accentSoft, borderRadius: 16, borderWidth: 1, borderColor: playerTheme.accentHairline },
   downloadBtn: { width: 32, height: 32, justifyContent: "center", alignItems: "center", flexShrink: 0, gap: 0 },
-  bigPlayButton: { width: 48, height: 48, borderRadius: 16, backgroundColor: "#78BFFF", borderWidth: 2, borderColor: "#FFFFFF", justifyContent: "center", alignItems: "center", flexShrink: 0, marginHorizontal: 4, elevation: 5 },
-  bigPlayButtonFullscreen: { width: 58, height: 58, borderRadius: 20 },
-  bigPlayButtonCompact: { width: 44, height: 44, borderRadius: 15 },
-  playerButtonPressed: { transform: [{ scale: 0.94 }], opacity: 0.88 },
   hudBadge: { position: "absolute", top: 20, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.75)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 5, zIndex: 10 },
   hudPill: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 8, zIndex: 10 },
   hudText: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   doubleTapOverlay: { position: "absolute", top: "32%", alignItems: "center", justifyContent: "center", zIndex: 12 },
   doubleTapText: { color: "#FFF", fontSize: 12, fontWeight: "800", marginTop: 3 },
-  chapterMarker: { position: "absolute", height: 2, backgroundColor: "#FFD600", borderRadius: 1, top: 7 },
+  chapterMarker: { position: "absolute", height: 4, backgroundColor: playerTheme.accentBright, opacity: 0.85, borderRadius: 2, top: 8 },
   skipButtonOverlay: { position: "absolute", bottom: 120, right: 12, backgroundColor: "rgba(255,255,255,0.92)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 4, zIndex: 15, elevation: 6, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 8 },
+  skipButtonPressed: { transform: [{ scale: 0.94 }], backgroundColor: playerTheme.accent },
   upNextCard: { position: "absolute", bottom: 120, right: 12, zIndex: 15, elevation: 6, flexDirection: "row", gap: 8, alignItems: "center", maxWidth: 260, backgroundColor: "rgba(9,9,9,0.88)", borderRadius: 8, padding: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.12)" },
   upNextPoster: { width: 44, height: 62, borderRadius: 4, backgroundColor: nothing.raised },
   upNextCopy: { flex: 1, gap: 3 },
-  upNextKicker: { color: "#8CCAFF", fontSize: 10, fontWeight: "800", letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
+  upNextKicker: { color: playerTheme.accentBright, fontSize: 10, fontWeight: "800", letterSpacing: 0.6, fontVariant: ["tabular-nums"] },
   upNextTitle: { color: "#FFF", fontSize: 12, fontWeight: "700" },
   upNextRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  upNextPlay: { minHeight: 30, paddingHorizontal: 10, justifyContent: "center", borderRadius: 4, backgroundColor: "#3985F5" },
+  upNextPlay: { minHeight: 30, paddingHorizontal: 10, justifyContent: "center", borderRadius: 4, backgroundColor: playerTheme.accent },
   upNextPlayText: { color: "#FFF", fontSize: 10, fontWeight: "800", letterSpacing: 0.3 },
   upNextDismiss: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   skipButtonText: { color: nothing.black, fontSize: 11, fontWeight: "800", letterSpacing: 0.3, textTransform: "uppercase" },
   skipCountdown: { color: nothing.muted, fontSize: 11, fontWeight: "700", letterSpacing: 0.2 },
   lockedPill: { position: "absolute", bottom: 32, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.8)", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", zIndex: 15 },
-  lockedPillArmed: { borderColor: "#8CCAFF" },
+  lockedPillArmed: { borderColor: playerTheme.accentBright },
   bufferingVeil: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", zIndex: 2 },
   lockedText: { color: "#FFF", fontSize: 11, fontWeight: "600" },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(20,43,75,0.30)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "rgba(245,249,255,0.88)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, gap: 3, borderWidth: 1, borderColor: "#C6DDF5", overflow: "hidden", elevation: 12 },
-  modalTitle: { color: "#142B4B", fontSize: 14, fontWeight: "900", letterSpacing: 0.2, marginBottom: 6, textTransform: "uppercase" },
-  modalItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 9, borderBottomWidth: 1, borderBottomColor: "#DCEBFA", borderRadius: 10 },
-  modalItemActive: { backgroundColor: "#EAF4FF" },
-  modalItemText: { color: "#425B78", fontSize: 13, fontWeight: "700" },
-  modalItemSub: { color: "#71839D", fontSize: 11, fontWeight: "600", marginTop: 2 },
-  modalItemTextActive: { color: "#2878F0", fontWeight: "900" },
-  chapterModalSheet: { backgroundColor: "rgba(245,249,255,0.96)", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, gap: 4, maxHeight: "70%", borderWidth: 1, borderColor: "#C6DDF5", overflow: "hidden" },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
+  modalSheet: { backgroundColor: "rgba(11,14,19,0.92)", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 18, gap: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.14)", overflow: "hidden", elevation: 12 },
+  modalTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", letterSpacing: 0.2, marginBottom: 6, textTransform: "uppercase" },
+  modalItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 9, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.08)", borderRadius: 10 },
+  modalItemActive: { backgroundColor: "rgba(22,139,255,0.16)" },
+  modalItemText: { color: "rgba(255,255,255,0.82)", fontSize: 13, fontWeight: "700" },
+  modalItemSub: { color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "600", marginTop: 2 },
+  modalItemTextActive: { color: playerTheme.accentBright, fontWeight: "900" },
+  chapterModalSheet: { backgroundColor: "rgba(11,14,19,0.94)", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, gap: 4, maxHeight: "70%", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)", overflow: "hidden" },
   chapterList: { gap: 1 },
   chapterItem: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 9, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: "rgba(255,255,255,0.04)" },
-  chapterItemActive: { backgroundColor: "#EAF5FF" },
+  chapterItemActive: { backgroundColor: "rgba(22,139,255,0.14)" },
   chapterItemPast: { opacity: 0.58 },
   chapterItemLeft: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1 },
-  chapterDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#B8D5F5" },
-  chapterDotActive: { backgroundColor: "#3985F5" },
+  chapterDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.35)" },
+  chapterDotActive: { backgroundColor: playerTheme.accent },
   chapterDotPast: { backgroundColor: "#71839A" },
   chapterInfo: { gap: 1 },
-  chapterName: { color: "#172B45", fontSize: 11, fontWeight: "700" },
-  chapterNameActive: { color: "#3985F5" },
-  chapterTimestamp: { color: "#71839A", fontSize: 9, fontWeight: "500", fontVariant: ["tabular-nums"] },
+  chapterName: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  chapterNameActive: { color: playerTheme.accentBright },
+  chapterTimestamp: { color: "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: "500", fontVariant: ["tabular-nums"] },
   chapterItemRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  chapterDuration: { color: "#71839A", fontSize: 9, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  chapterDuration: { color: "rgba(255,255,255,0.45)", fontSize: 9, fontWeight: "600", fontVariant: ["tabular-nums"] },
   chapterEmptyText: { color: nothing.muted, fontSize: 11, textAlign: "center", paddingVertical: 12 },
+  videoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#08090C" },
+  placeholderShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(8,9,12,0.8)" },
   contextActions: { alignSelf: "flex-end", alignItems: "flex-end", gap: 4 },
-  videoPlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "#090909" },
-  thumbnailLoading: { ...StyleSheet.absoluteFillObject, overflow: "hidden", justifyContent: "flex-end", backgroundColor: "#090909" },
-  thumbnailLoadingShade: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.32)" },
-  thumbnailLoadingContent: { zIndex: 1, gap: 6, padding: 14, paddingTop: 48, backgroundColor: "rgba(9,9,9,0.68)" },
-  thumbnailPlay: { width: 34, height: 34, alignItems: "center", justifyContent: "center", backgroundColor: "#FFFFFF", borderRadius: 4 },
-  thumbnailEpisode: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  thumbnailTitle: { color: "#FFFFFF", fontSize: 14, lineHeight: 18, fontWeight: "900" },
-  thumbnailStatus: { color: nothing.muted, fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
-  placeholderText: { color: "#71839A", fontSize: 11, fontWeight: "700", letterSpacing: 0.8 },
-  errorText: { color: nothing.red, fontSize: 11, fontWeight: "600", textAlign: "center", paddingHorizontal: 20 },
   playerOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 3, justifyContent: "space-between", padding: 8 },
   pointerBoxNone: { pointerEvents: "box-none" },
   pointerNone: { pointerEvents: "none" },
   bentoTopRow: { gap: 14 },
   bentoTopRowWide: { flexDirection: "row", alignItems: "stretch" },
   bentoInfoWide: { flex: 1.35 },
+  watchInfoColumn: { gap: 14 },
   providerSectionWide: { flex: 0.85, justifyContent: "center" },
-  th3Section: { gap: 13, padding: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 23, elevation: 3, shadowColor: "#142B45", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 9 },
+  th3Section: { gap: 13, padding: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#D6E8FA", borderRadius: 23, elevation: 3, shadowColor: "#102B50", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.07, shadowRadius: 9 },
   providerSection: { gap: 13, padding: 16, backgroundColor: "#EAF5FF", borderWidth: 1.5, borderColor: "#3985F5", borderRadius: 23, elevation: 3, shadowColor: "#3985F5", shadowOffset: { width: 3, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
   episodesSection: { gap: 13, padding: 16, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#C6DDF5", borderRadius: 23, elevation: 2 },
   bentoSectionHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
@@ -2989,30 +3138,12 @@ const styles = StyleSheet.create({
   liveText: { color: "#3985F5", fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
   providerLanguageNote: { color: "#71839A", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
   episodeCountBadge: { color: "#172B45", fontSize: 10, fontWeight: "900", paddingHorizontal: 9, paddingVertical: 6, overflow: "hidden", borderRadius: 9, borderWidth: 1, borderColor: "#C6DDF5", backgroundColor: "#EAF5FF" },
-  watchAnimeCard: { flexDirection: "row", alignItems: "center", gap: 13, padding: 12, borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 17, backgroundColor: "#F4F8FF" },
-  watchAnimePoster: { width: 58, height: 76, borderRadius: 11, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF4FF" },
-  watchAnimeCopy: { flex: 1, gap: 4 },
-  watchAnimeEyebrow: { color: "#3985F5", fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
-  watchAnimeTitle: { color: "#142B4B", fontSize: 17, lineHeight: 21, fontWeight: "900" },
-  watchAnimeEpisode: { color: "#71839D", fontSize: 12, fontWeight: "600" },
-  watchMetaRow: { flexDirection: "row", flexWrap: "wrap", gap: 5, marginTop: 4 },
-  watchMetaBadge: { color: "#3985F5", fontSize: 10, fontWeight: "900", paddingHorizontal: 7, paddingVertical: 4, overflow: "hidden", borderRadius: 7, backgroundColor: "#EAF4FF" },
-  watchGenreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  watchGenreBadge: { color: "#425B78", fontSize: 11, fontWeight: "700", paddingHorizontal: 9, paddingVertical: 6, overflow: "hidden", borderRadius: 9, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#FFFFFF" },
-  watchSynopsis: { gap: 7, padding: 13, borderWidth: 1, borderColor: "#D5E7F9", borderRadius: 15, backgroundColor: "#F5F9FF" },
-  synopsisToggle: { alignSelf: "flex-start", minHeight: 34, flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 5 },
-  synopsisToggleText: { color: "#3985F5", fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
-  watchSynopsisLabel: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.7 },
-  watchSynopsisText: { color: "#425B78", fontSize: 12, lineHeight: 18 },
   watchEpisodeNav: { flexDirection: "row", gap: 9 },
   watchEpisodeButton: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1.5, borderColor: "#2878F0", borderRadius: 13, backgroundColor: "#FFFFFF" },
   watchEpisodeNext: { backgroundColor: "#3985F5", borderColor: "#172B45", elevation: 3 },
   watchEpisodeDisabled: { opacity: 0.38 },
   watchEpisodeButtonText: { color: "#2878F0", fontSize: 10, fontWeight: "900", letterSpacing: 0.5 },
   watchEpisodeNextText: { color: "#FFFFFF" },
-  th3Watching: { fontSize: 16, fontWeight: "900", letterSpacing: -0.4, textAlign: "left", paddingVertical: 12, paddingHorizontal: 13, backgroundColor: "#EAF4FF", borderWidth: 1, borderColor: "#B8D5F5", borderRadius: 15 },
-  th3WatchingGreen: { color: "#3985F5", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
-  th3WatchingWhite: { color: "#142B4B", fontSize: 16, fontWeight: "900", letterSpacing: -0.4 },
   th3Tabs: { flexDirection: "row", gap: 5, padding: 4, borderWidth: 1, borderColor: "#C6DDF5", borderRadius: 13, backgroundColor: "rgba(255,255,255,0.72)" },
   th3Tab: { flex: 1, minHeight: 38, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: "transparent" },
   th3TabActive: { backgroundColor: "#3985F5", borderWidth: 1, borderColor: "#172B45", elevation: 2 },
@@ -3044,7 +3175,7 @@ const styles = StyleSheet.create({
   errorAction: { paddingHorizontal: 12, paddingTop: 10 },
   errorCard: { gap: 6, padding: 12 },
   errorCopy: { color: nothing.muted, fontSize: 12, lineHeight: 16 },
-  scroll: { flexGrow: 1, width: "100%", maxWidth: 1240, alignSelf: "center", paddingHorizontal: 14, paddingTop: 14, gap: 14, backgroundColor: "#F5F9FF", paddingBottom: 40 },
+  scroll: { flexGrow: 1, width: "100%", maxWidth: 1240, alignSelf: "center", paddingHorizontal: 14, paddingTop: 14, gap: 14, backgroundColor: "#F2F8FF", paddingBottom: 40 },
   episodeLoading: { gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#C6DDF5" },
   episodePager: { flexDirection: "row", alignItems: "center", gap: 6 },
   episodePagerButton: { flex: 1, minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 12, borderWidth: 1, borderColor: "#B8D5F5", backgroundColor: "#EAF5FF" },
@@ -3065,18 +3196,10 @@ const styles = StyleSheet.create({
   ratingChoiceTextActive: { color: "#FFFFFF" },
   languageRow: { flexDirection: "row", gap: 4 },
   language: { minWidth: 48, minHeight: 28, alignItems: "center", justifyContent: "center", paddingHorizontal: 8, borderRadius: 3, borderWidth: 1, borderColor: "rgba(255,255,255,0.1)", backgroundColor: "transparent" },
-  languageActive: { borderColor: "#3985F5", backgroundColor: "#EAF5FF" },
+  languageActive: { borderColor: playerTheme.accent, backgroundColor: "rgba(22,139,255,0.16)" },
   languageDisabled: { opacity: 0.3 },
   languageText: { color: "rgba(255,255,255,0.5)", fontFamily: nothing.mono, fontSize: 9, fontWeight: "900", letterSpacing: 0.2 },
-  languageTextActive: { color: "#3985F5" },
-  glassCubeStage: { width: 58, height: 58, alignItems: "center", justifyContent: "center" },
-  glassCube: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(57,133,245,0.55)", backgroundColor: "rgba(140,202,255,0.42)", elevation: 9, shadowColor: "#3985F5", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.24, shadowRadius: 10 },
-  glassCubeFace: { position: "absolute", top: 4, left: 5, right: 5, height: 10, borderRadius: 6, backgroundColor: "rgba(255,255,255,0.84)" },
-  glassCubeCore: { width: 13, height: 13, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.58)", borderWidth: 1, borderColor: "rgba(255,255,255,0.9)" },
-  providerDiscovery: { width: "100%", maxWidth: 260, alignItems: "center", gap: 13, padding: 20, borderRadius: 22, borderWidth: 1, borderColor: "rgba(198,221,245,0.8)", backgroundColor: "rgba(255,255,255,0.82)", elevation: 8, shadowColor: "#3985F5", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 18 },
-  providerDiscoveryCopy: { alignItems: "center", gap: 3 },
-  providerDiscoveryTitle: { color: "#172B45", fontFamily: nothing.mono, fontSize: 10, fontWeight: "900", letterSpacing: 1 },
-  providerDiscoveryDetail: { color: "#71839A", fontFamily: nothing.mono, fontSize: 10, fontWeight: "800", letterSpacing: 0.6 },
+  languageTextActive: { color: playerTheme.accentBright },
 });
 
 // Memoized: the watch screen re-renders every second (progress clock), and
@@ -3114,40 +3237,3 @@ const EpisodeGrid = memo(function EpisodeGrid({ episodes, activeEpisode, totalPa
     {totalPages > 1 ? <View style={styles.episodePager}><Pressable disabled={page === 0} onPress={() => onPageChange((v) => Math.max(0, v - 1))} accessibilityRole="button" accessibilityLabel="Previous page" accessibilityHint="Shows the previous page of episodes" style={[styles.episodePagerButton, page === 0 && styles.episodePagerDisabled]}><AppIcon name="chevron-left" size={17} color={"#FFFFFF"} /><Text style={styles.episodePagerText}>PREV</Text></Pressable><Text style={styles.episodePagerIndicator}>{page + 1} / {totalPages}</Text><Pressable disabled={page >= totalPages - 1} onPress={() => onPageChange((v) => Math.min(totalPages - 1, v + 1))} accessibilityRole="button" accessibilityLabel="Next page" accessibilityHint="Shows the next page of episodes" style={[styles.episodePagerButton, page >= totalPages - 1 && styles.episodePagerDisabled]}><Text style={styles.episodePagerText}>NEXT</Text><AppIcon name="chevron-right" size={17} color={"#FFFFFF"} /></Pressable></View> : null}
   </>;
 });
-
-function GlassCube() {
-  const spin = useRef(new Animated.Value(0)).current;
-  const [reducedMotion, setReducedMotion] = useState(false);
-  useEffect(() => {
-    let mounted = true;
-    void AccessibilityInfo.isReduceMotionEnabled().then((value) => { if (mounted) setReducedMotion(value); }).catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", setReducedMotion);
-    return () => { mounted = false; subscription.remove(); };
-  }, []);
-  useEffect(() => {
-    if (reducedMotion) { spin.stopAnimation(); spin.setValue(0.18); return; }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(spin, { toValue: 1, duration: 1500, useNativeDriver: true }),
-      Animated.timing(spin, { toValue: 0, duration: 1500, useNativeDriver: true }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [reducedMotion, spin]);
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["-12deg", "12deg"] });
-  const translateY = spin.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -5, 0] });
-  return <View style={styles.glassCubeStage} accessibilityLabel="Finding streaming providers" accessibilityRole="progressbar">
-    <Animated.View style={[styles.glassCube, { transform: [{ perspective: 500 }, { rotateX: rotate }, { rotateY: rotate }, { translateY }] }]}>
-      <View style={styles.glassCubeFace} /><View style={styles.glassCubeCore} />
-    </Animated.View>
-  </View>;
-}
-
-function ProviderDiscoveryLoader({ attempt }: { attempt: number }) {
-  return <View style={styles.providerDiscovery}>
-    <GlassCube />
-    <View style={styles.providerDiscoveryCopy}>
-      <Text style={styles.providerDiscoveryTitle}>FINDING PROVIDERS</Text>
-      <Text style={styles.providerDiscoveryDetail}>{attempt > 1 ? `CHECKING SERVERS · RETRY ${attempt}` : "CHECKING SERVERS"}</Text>
-    </View>
-  </View>;
-}

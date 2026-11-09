@@ -32,6 +32,10 @@ import { AnimeComments } from "@/components/anime-comments";
 import { ErrorState } from "@/components/async-state";
 import { AnimeDetailSkeleton, SkeletonEpisode } from "@/components/skeleton";
 import { AppIcon } from "@/components/app-icon";
+import { BottomGradient } from "@/components/bottom-gradient";
+import { AnimeArtworkImage } from "@/components/anime-artwork";
+import { posterImageOf, bannerImageOf } from "@/lib/anime-images";
+import { ArrowLeft, Bookmark, BookmarkCheck, Share2 } from "lucide-react-native";
 import { AiringSchedule } from "@/components/airing-schedule";
 import { DotLabel, NothingButton, nothing } from "@/components/nothing-ui";
 import { NativeHeader, NativeScreen } from "@/components/screen";
@@ -190,8 +194,8 @@ export default function AnimeDetailScreen() {
     );
   const data = anime.data;
   const title = animeTitle(data);
-  const bannerImage = data.bannerImage || "";
-  const posterImage = data.coverImage?.extraLarge || data.coverImage?.large || "";
+  const bannerImage = bannerImageOf(data);
+  const posterImage = posterImageOf(data);
   const altTitle =
     data.title.native && data.title.native !== title
       ? data.title.native
@@ -270,22 +274,27 @@ export default function AnimeDetailScreen() {
       <View style={styles.heroSection}>
         <View style={[styles.heroBanner, { height: heroHeight }]}>
           {bannerImage ? (
-            <Image
-              source={{ uri: bannerImage }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              transition={0}
-              cachePolicy="memory-disk"
+            <AnimeArtworkImage
+              uri={bannerImage}
+              animeId={id}
+              kind="detail-banner"
+              transition={260}
+              fallbackLabel={title}
+            />
+          ) : posterImage ? (
+            <AnimeArtworkImage
+              uri={posterImage}
+              animeId={id}
+              kind="detail-poster-fallback"
+              blurRadius={26}
+              transition={260}
+              fallbackLabel={title}
             />
           ) : (
-            <View style={StyleSheet.absoluteFill}>
-              <View style={styles.heroFallbackBase} />
-              <View style={styles.heroFallbackBlob} />
-              <View style={[styles.heroFallbackBlob, styles.heroFallbackBlob2]} />
-              <View style={[styles.heroFallbackBlob, styles.heroFallbackBlob3]} />
-            </View>
+            <View style={styles.heroFallbackBase} />
           )}
           <View style={styles.heroScrim} />
+          <BottomGradient opacity={0.92} />
           <View style={styles.heroTop}>
             <Pressable
               accessibilityRole="button"
@@ -297,7 +306,7 @@ export default function AnimeDetailScreen() {
               ]}
             >
               <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-              <AppIcon name="arrow-left" size={19} color="#102B50" />
+              <ArrowLeft size={19} color="#102B50" strokeWidth={2.4} />
             </Pressable>
             <View style={styles.heroTopActions}>
               <Pressable
@@ -317,11 +326,15 @@ export default function AnimeDetailScreen() {
                 ]}
               >
                 <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-                <AppIcon
-                  name={bookmarks.isBookmarked(id) ? "bookmark-multiple-outline" : "bookmark"}
-                  size={18}
-                  color={bookmarks.isBookmarked(id) ? "#168BFF" : "#102B50"}
-                />
+                {bookmarks.isBookmarked(id) ? (
+                  <BookmarkCheck
+                    size={18}
+                    color="#168BFF"
+                    strokeWidth={2.3}
+                  />
+                ) : (
+                  <Bookmark size={18} color="#102B50" strokeWidth={2.3} />
+                )}
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -338,20 +351,23 @@ export default function AnimeDetailScreen() {
                 ]}
               >
                 <BlurView pointerEvents="none" intensity={34} tint="light" experimentalBlurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-                <AppIcon name="share-2" size={18} color="#102B50" />
+                <Share2 size={18} color="#102B50" strokeWidth={2.3} />
               </Pressable>
             </View>
           </View>
         </View>
         <View style={styles.infoCard}>
           <View style={[styles.infoIntro, compact && styles.infoIntroCompact]}>
-            <Image
-              source={{ uri: posterImage }}
-              style={[styles.poster, compact && styles.posterCompact]}
-              contentFit="cover"
-              transition={120}
-              cachePolicy="memory-disk"
-            />
+            <View style={[styles.posterWrap, compact && styles.posterCompact]}>
+              <AnimeArtworkImage
+                uri={posterImage}
+                animeId={id}
+                kind="detail-poster"
+                contentFit="cover"
+                transition={200}
+                fallbackLabel={title}
+              />
+            </View>
             <View style={styles.infoBody}>
               <View style={styles.statusBadge}>
                 <Text style={styles.statusText}>{statusLabel}</Text>
@@ -987,33 +1003,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#D9EEFF",
   },
   heroFallbackBase: { ...StyleSheet.absoluteFillObject, backgroundColor: "#D9EEFF" },
-  heroFallbackBlob: {
-    position: "absolute",
-    top: -70,
-    right: -60,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: "rgba(255,255,255,0.55)",
-  },
-  heroFallbackBlob2: {
-    top: "auto",
-    bottom: -90,
-    right: undefined,
-    left: -70,
-    backgroundColor: "rgba(22,139,255,0.16)",
-  },
-  heroFallbackBlob3: {
-    top: 150,
-    left: 90,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: "rgba(255,255,255,0.38)",
-  },
   heroScrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(16,43,80,0.22)",
+    backgroundColor: "rgba(16,43,80,0.16)",
   },
   heroTop: {
     zIndex: 2,
@@ -1043,26 +1035,27 @@ const styles = StyleSheet.create({
   heroIconActive: { borderColor: "rgba(22,139,255,0.45)" },
   heroIconPressed: { opacity: 0.72, transform: [{ scale: 0.95 }] },
   infoCard: {
-    marginTop: -56,
+    marginTop: -62,
     marginHorizontal: 14,
     marginBottom: 12,
     padding: 14,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#D6E8FA",
     shadowColor: "#102B50",
-    shadowOffset: { width: 0, height: 10 },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.1,
-    shadowRadius: 22,
+    shadowRadius: 24,
     elevation: 6,
   },
   infoIntro: { flexDirection: "row", alignItems: "flex-start", gap: 14 },
   infoIntroCompact: { gap: 10 },
-  poster: {
+  posterWrap: {
     width: 112,
     height: 158,
-    borderRadius: 14,
+    borderRadius: 16,
+    overflow: "hidden",
     backgroundColor: "#D9EEFF",
     borderWidth: 2,
     borderColor: "#FFFFFF",
